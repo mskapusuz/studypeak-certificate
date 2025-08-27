@@ -1,4 +1,7 @@
 {
+  "require": {
+    "tecnickcom/tcpdf": "^6.6"
+  },
   "require-dev": {
     "wp-cli/i18n-command": "^2"
   },
