@@ -73,8 +73,8 @@ add_action( 'admin_init', function() {
      $pdf->Cell($bar_width, 10, 'Single Bar', 0, 0, 'C');
 
     // Draw a ruler (10cm physical length, 0-100 scale)
-    $ruler_start_x = 30;
-    $ruler_start_y = 130;
+    $ruler_start_x = 50;
+    $ruler_start_y = 50;
     $ruler_length = 100; // 10cm in PDF units (assuming 10 units = 1cm)
     $ruler_height = 15;
     
@@ -92,17 +92,18 @@ add_action( 'admin_init', function() {
     for ($i = 0; $i <= 100; $i += 20) {
         $x_pos = $ruler_start_x + ($i * $ruler_length / 100);
 
-        $line_height = 6;
+        $line_height = 5;
+        $diff = 8;
         
         // Major marks with numbers
         $pdf->SetLineWidth(0.1);
         // Upper tick mark
         $pdf->Line($x_pos, $ruler_start_y, $x_pos, $ruler_start_y - $line_height);
         $pdf->SetLineWidth(0.1);
-        $pdf->Line($x_pos, $ruler_start_y + $line_height, $x_pos, $ruler_start_y + $line_height*2);
+        $pdf->Line($x_pos, $ruler_start_y + $diff, $x_pos, $ruler_start_y + $diff + $line_height);
         
         // Center text between the tick marks at the ruler base line
-        $pdf->SetXY($x_pos - 5, $ruler_start_y+1);
+        $pdf->SetXY($x_pos - 5, $ruler_start_y+2);
         $pdf->Cell(10, 4, $i, 0, 0, 'C', false, '', 0, false, 'T', 'M');
     }
     
