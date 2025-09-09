@@ -219,15 +219,15 @@ add_action( 'admin_init', function() {
     $page_width = $pdf->getPageWidth();
     $page_height = $pdf->getPageHeight();
     $padding_x = $page_width * 0.1; // 10% of page width
-    $padding_y = $page_height * 0.1; // 10% of page height
+    $padding_y = $page_height * 0.05; // 10% of page height
     
     // Set margins to 0 and we'll handle positioning manually
     $pdf->SetMargins(0, 0, 0);
 
-    // Set font and position title with padding
+    // Set font and position title at left top
     $pdf->SetFont('helvetica', 'B', 16);
-    $pdf->SetXY($padding_x, $padding_y + 10);
-    $pdf->Cell($page_width - (2 * $padding_x), 10, 'Student Performance Chart', 0, 1, 'C');
+    $pdf->SetXY($padding_x, $padding_y);
+    $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'L');
 
     // Draw multiple bars
     $bars_data = [
