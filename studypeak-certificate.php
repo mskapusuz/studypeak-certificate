@@ -26,7 +26,7 @@
     
     // Draw a ruler (10cm physical length, 0-100 scale)
     $ruler_start_x = $padding_x + $quiz_title_width + 10; // Start position for ruler (same as bars)
-    $ruler_start_y = $padding_y + 60; // Start position above the bars
+    $ruler_start_y = $padding_y + 80; // Start position above the bars (with spacing from graph)
     $ruler_length = $bar_area_width; // Use available width for ruler
     $ruler_height = 15;
 
@@ -303,11 +303,14 @@ add_action( 'admin_init', function() {
     // $observed_y = $center_y - (exp(-(0.6 * 0.6) / 1) * $graph_height * 0.8);
     // $pdf->Circle($observed_x, $observed_y, 1.5, 0, 360, 'F');
     
-    // Update starting position for bars to be below the graph
-    $current_y = $graph_start_y + $graph_height + 10; // Starting Y position (below logo, title, and graph)
+    // Update starting position for bars to be below the graph with spacing
+    $current_y = $graph_start_y + $graph_height + 20; // Starting Y position (below logo, title, and graph with spacing)
     
     // Draw ruler first
     ruler($pdf);
+    
+    // Add spacing between ruler and first bar
+    $current_y += 15; // Extra spacing between ruler and first bar
     
     // Draw each category and its sub-quizzes
     $is_first_category = true;
