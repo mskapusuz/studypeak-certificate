@@ -86,21 +86,21 @@
             [$base_blue[0] - 80, $base_blue[1] - 80, $base_blue[2] - 80]  // Darkest
         ];
         
-        // Draw 5 gradient background pieces
+        // Draw 5 gradient background pieces with rounded corners
         for ($i = 0; $i < 5; $i++) {
             $piece_x = $x_pos + ($i * ($piece_width + $padding));
             $pdf->SetFillColor($gradient_colors[$i][0], $gradient_colors[$i][1], $gradient_colors[$i][2]);
-            $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F');
+            $pdf->RoundedRect($piece_x, $y_pos, $piece_width, $background_height, 1, '1111', 'F');
         }
     } else {
         // Regular gray background
         $gray_color = [242, 240, 240]; // Light gray color
         $pdf->SetFillColor($gray_color[0], $gray_color[1], $gray_color[2]);
         
-        // Draw 5 gray background pieces
+        // Draw 5 gray background pieces with rounded corners
         for ($i = 0; $i < 5; $i++) {
             $piece_x = $x_pos + ($i * ($piece_width + $padding));
-            $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F');
+            $pdf->RoundedRect($piece_x, $y_pos, $piece_width, $background_height, 1, '1111', 'F');
         }
     }
     
@@ -139,7 +139,7 @@
     }
     $pdf->SetFillColor($color[0], $color[1], $color[2]);
     $bar_y_pos = $y_pos + (($background_height - $bar_height) / 2); // Center the bar vertically
-    $pdf->Rect($x_pos, $bar_y_pos, $bar_width, $bar_height, 'F');
+    $pdf->RoundedRect($x_pos, $bar_y_pos, $bar_width, $bar_height, 0.5, '1111', 'F');
  }
 
 add_action( 'admin_init', function() {
@@ -193,13 +193,22 @@ add_action( 'admin_init', function() {
     $pdf->SetXY($padding_x, $effective_content_start_y);
     $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'L');
 
-    // Draw multiple bars
+    // Draw multiple bars with multi-dimensional structure
     $bars_data = [
-        ['title' => 'Mathematics', 'progress' => 80, 'is_title' => true],
-        ['title' => 'Science', 'progress' => 60, 'is_title' => false],
-        ['title' => 'English', 'progress' => 45, 'is_title' => false],
-        ['title' => 'History', 'progress' => 70, 'is_title' => false],
-        ['title' => 'Geography', 'progress' => 35, 'is_title' => false]
+        'Mathematics' => [
+            ['title' => 'Algebra', 'progress' => 85, 'is_title' => false],
+            ['title' => 'Geometry', 'progress' => 75, 'is_title' => false],
+            ['title' => 'Calculus', 'progress' => 60, 'is_title' => false]
+        ],
+        'Science' => [
+            ['title' => 'Physics', 'progress' => 70, 'is_title' => false],
+            ['title' => 'Chemistry', 'progress' => 65, 'is_title' => false],
+            ['title' => 'Biology', 'progress' => 80, 'is_title' => false]
+        ],
+        'English' => [
+            ['title' => 'Literature', 'progress' => 90, 'is_title' => false],
+            ['title' => 'Grammar', 'progress' => 55, 'is_title' => false]
+        ]
     ];
     
     $margin_top = 7; // Margin top for each bar
@@ -208,18 +217,26 @@ add_action( 'admin_init', function() {
     // Draw ruler first
     ruler($pdf);
     
-    // Draw each bar
-    foreach ($bars_data as $index => $bar_data) {
-        // Add margin top for each bar (except the first one)
-        if ($index > 0) {
+    // Draw each category and its sub-quizzes
+    $is_first_category = true;
+    foreach ($bars_data as $category_title => $sub_quizzes) {
+        // Add margin top for each category (except the first one)
+        if (!$is_first_category) {
+            $current_y += $margin_top * 2; // Extra spacing between categories
+        }
+        
+        // Draw category title bar
+        $category_progress = array_sum(array_column($sub_quizzes, 'progress')) / count($sub_quizzes); // Average progress
+        bar_with_position($pdf, $category_progress, true, $category_title, $current_y);
+        $current_y += $margin_top;
+        
+        // Draw sub-quiz bars
+        foreach ($sub_quizzes as $sub_quiz) {
+            bar_with_position($pdf, $sub_quiz['progress'], $sub_quiz['is_title'], $sub_quiz['title'], $current_y);
             $current_y += $margin_top;
         }
         
-        // Create a modified bar function call with custom Y position
-        bar_with_position($pdf, $bar_data['progress'], $bar_data['is_title'], $bar_data['title'], $current_y);
-        
-        // Move to next position: margin top + bar height (7)
-        $current_y += 0; // Height of the bar
+        $is_first_category = false;
     }
 
     // Output PDF
