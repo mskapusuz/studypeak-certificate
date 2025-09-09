@@ -69,18 +69,38 @@
     $x_pos = $padding_x + $quiz_title_width + 10; // Start position for bars (after title + gap)
     $y_pos = $padding_y + 60; // Start position with padding
     
-    // Draw gray background with 5 pieces with padding between each
-    $gray_color = [242, 240, 240]; // Light gray color
-    $pdf->SetFillColor($gray_color[0], $gray_color[1], $gray_color[2]);
-    
+    // Draw background with 5 pieces with padding between each
     $total_width = $bar_area_width; // Use available width for bars
     $padding = 1; // More padding between pieces
     $piece_width = ($total_width - (4 * $padding)) / 5; // Calculate piece width to fit 5 pieces with 4 paddings
     
-    // Draw 5 gray background pieces with padding
-    for ($i = 0; $i < 5; $i++) {
-        $piece_x = $x_pos + ($i * ($piece_width + $padding));
-        $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F'); // 'FD' = Fill and Draw border
+    if ($is_title) {
+        // Gradient background: light blue to darker blue
+        $base_blue = [173, 216, 230]; // Light blue base
+        $gradient_colors = [
+            [$base_blue[0], $base_blue[1], $base_blue[2]], // Lightest
+            [$base_blue[0] - 10, $base_blue[1] - 10, $base_blue[2] - 10], // Slightly darker
+            [$base_blue[0] - 20, $base_blue[1] - 20, $base_blue[2] - 20], // Darker
+            [$base_blue[0] - 30, $base_blue[1] - 30, $base_blue[2] - 30], // More darker
+            [$base_blue[0] - 40, $base_blue[1] - 40, $base_blue[2] - 40]  // Darkest
+        ];
+        
+        // Draw 5 gradient background pieces
+        for ($i = 0; $i < 5; $i++) {
+            $piece_x = $x_pos + ($i * ($piece_width + $padding));
+            $pdf->SetFillColor($gradient_colors[$i][0], $gradient_colors[$i][1], $gradient_colors[$i][2]);
+            $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F');
+        }
+    } else {
+        // Regular gray background
+        $gray_color = [242, 240, 240]; // Light gray color
+        $pdf->SetFillColor($gray_color[0], $gray_color[1], $gray_color[2]);
+        
+        // Draw 5 gray background pieces
+        for ($i = 0; $i < 5; $i++) {
+            $piece_x = $x_pos + ($i * ($piece_width + $padding));
+            $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F');
+        }
     }
     
     // Add quiz title on the left side of the bars
