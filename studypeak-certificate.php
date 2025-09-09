@@ -13,11 +13,11 @@
  */
 
  function ruler($pdf) {
-    // Calculate 10% padding for positioning
+    // Calculate padding for positioning (matching main function)
     $page_width = $pdf->getPageWidth();
     $page_height = $pdf->getPageHeight();
-    $padding_x = $page_width * 0.1; // 10% of page width
-    $padding_y = $page_height * 0.1; // 10% of page height
+    $padding_x = $page_width * 0.075; // 7.5% of page width (matching main function)
+    $padding_y = $page_height * 0.05; // 5% of page height (matching main function)
     
     // Calculate available width after padding
     $available_width = $page_width - (2 * $padding_x);
@@ -26,7 +26,7 @@
     
     // Draw a ruler (10cm physical length, 0-100 scale)
     $ruler_start_x = $padding_x + $quiz_title_width + 10; // Start position for ruler (same as bars)
-    $ruler_start_y = $padding_y + 65; // Start position above the bars (will be adjusted by main function)
+    $ruler_start_y = $padding_y + 60; // Start position above the bars
     $ruler_length = $bar_area_width; // Use available width for ruler
     $ruler_height = 15;
 
@@ -196,23 +196,115 @@ add_action( 'admin_init', function() {
     // Draw multiple bars with multi-dimensional structure
     $bars_data = [
         'Mathematics' => [
-            ['title' => 'Algebra', 'progress' => 85, 'is_title' => false],
-            ['title' => 'Geometry', 'progress' => 75, 'is_title' => false],
-            ['title' => 'Calculus', 'progress' => 60, 'is_title' => false]
+            ['title' => 'Algebra', 'progress' => 85],
+            ['title' => 'Geometry', 'progress' => 75],
+            ['title' => 'Calculus', 'progress' => 60]
         ],
         'Science' => [
-            ['title' => 'Physics', 'progress' => 70, 'is_title' => false],
-            ['title' => 'Chemistry', 'progress' => 65, 'is_title' => false],
-            ['title' => 'Biology', 'progress' => 80, 'is_title' => false]
+            ['title' => 'Physics', 'progress' => 70],
+            ['title' => 'Chemistry', 'progress' => 65],
+            ['title' => 'Biology', 'progress' => 80]
         ],
         'English' => [
-            ['title' => 'Literature', 'progress' => 90, 'is_title' => false],
-            ['title' => 'Grammar', 'progress' => 55, 'is_title' => false]
+            ['title' => 'Literature', 'progress' => 90],
+            ['title' => 'Grammar', 'progress' => 55]
         ]
     ];
     
     $margin_top = 7; // Margin top for each bar
     $current_y = $effective_content_start_y + 80; // Starting Y position (below logo and title)
+    
+    // Draw the normal distribution graph (smaller, above ruler)
+    $graph_start_x = $padding_x;
+    $graph_start_y = $effective_content_start_y + 20;
+    $graph_width = 80;
+    $graph_height = 25;
+    
+    // Draw axes
+    $pdf->SetLineWidth(0.5);
+    $pdf->Line($graph_start_x, $graph_start_y + $graph_height, $graph_start_x + $graph_width, $graph_start_y + $graph_height); // X-axis
+    $pdf->Line($graph_start_x, $graph_start_y, $graph_start_x, $graph_start_y + $graph_height); // Y-axis
+    
+    // Draw normal distribution curve
+    $pdf->SetLineWidth(1);
+    $pdf->SetDrawColor(0, 0, 255); // Blue curve
+    
+    // Calculate points for normal distribution curve (simplified)
+    $center_x = $graph_start_x + ($graph_width / 2);
+    $center_y = $graph_start_y + $graph_height;
+    
+    // Draw curve using multiple line segments
+    $prev_x = $graph_start_x;
+    $prev_y = $center_y;
+    
+    for ($i = 0; $i <= 100; $i++) {
+        $x = $graph_start_x + ($i * $graph_width / 100);
+        $normalized_x = ($i - 50) / 16.67; // Scale to approximately -3 to +3
+        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
+        
+        if ($i > 0) {
+            $pdf->Line($prev_x, $prev_y, $x, $y);
+        }
+        $prev_x = $x;
+        $prev_y = $y;
+    }
+    
+    // Fill the area under the curve
+    $pdf->SetFillColor(200, 200, 255); // Light blue fill
+    $pdf->SetDrawColor(200, 200, 255);
+    
+    // Create filled area using polygon
+    $points = [];
+    $points[] = $graph_start_x; // Start point
+    $points[] = $center_y;
+    
+    for ($i = 0; $i <= 100; $i++) {
+        $x = $graph_start_x + ($i * $graph_width / 100);
+        $normalized_x = ($i - 50) / 16.67;
+        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
+        $points[] = $x;
+        $points[] = $y;
+    }
+    
+    $points[] = $graph_start_x + $graph_width; // End point
+    $points[] = $center_y;
+    
+    $pdf->Polygon($points, 'F');
+    
+    // Add labels
+    $pdf->SetFont('helvetica', '', 8);
+    $pdf->SetTextColor(0, 0, 0);
+    
+    // X-axis labels
+    $pdf->SetXY($graph_start_x - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '-3', 0, 0, 'C');
+    
+    $pdf->SetXY($center_x - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '0', 0, 0, 'C');
+    
+    $pdf->SetXY($graph_start_x + $graph_width - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '+3', 0, 0, 'C');
+    
+    // Center label "m"
+    $pdf->SetXY($center_x - 3, $center_y + 8);
+    $pdf->Cell(6, 4, 'm', 0, 0, 'C');
+    
+    // Low/High labels
+    $pdf->SetXY($graph_start_x - 8, $center_y + 8);
+    $pdf->Cell(16, 4, 'niedrig', 0, 0, 'C');
+    
+    $pdf->SetXY($graph_start_x + $graph_width - 8, $center_y + 8);
+    $pdf->Cell(16, 4, 'hoch', 0, 0, 'C');
+    
+    // Add observed value dot (removed yellow dot)
+    // $pdf->SetFillColor(255, 255, 0); // Yellow
+    // $pdf->SetDrawColor(255, 255, 0);
+    // $observed_x = $center_x + 5; // Slightly above 0
+    // $observed_y = $center_y - (exp(-(0.6 * 0.6) / 1) * $graph_height * 0.8);
+    // $pdf->Circle($observed_x, $observed_y, 1.5, 0, 360, 'F');
+    
+    // Update starting position for bars to be below the graph
+    $current_y = $graph_start_y + $graph_height + 10; // Starting Y position (below logo, title, and graph)
     
     // Draw ruler first
     ruler($pdf);
@@ -232,7 +324,7 @@ add_action( 'admin_init', function() {
         
         // Draw sub-quiz bars
         foreach ($sub_quizzes as $sub_quiz) {
-            bar_with_position($pdf, $sub_quiz['progress'], $sub_quiz['is_title'], $sub_quiz['title'], $current_y);
+            bar_with_position($pdf, $sub_quiz['progress'], false, $sub_quiz['title'], $current_y);
             $current_y += $margin_top;
         }
         
