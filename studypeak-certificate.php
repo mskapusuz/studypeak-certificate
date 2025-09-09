@@ -104,15 +104,32 @@
         }
     }
     
-    // Add quiz title on the left side of the bars
-    $font_style = $is_title ? 'B' : ''; // Bold if title, normal if not
-    $pdf->SetFont('helvetica', $font_style, 10);
-    $pdf->SetTextColor(0, 0, 0);
-    
+    // Add quiz title on the left side of the bars first
     $text_x = $padding_x; // Position text at the left edge with padding
     $text_y = $y_pos + (($background_height - 4) / 2); // Center text vertically with the bars
     $pdf->SetXY($text_x, $text_y);
+    
+    // Set font right before drawing the text
+    if ($is_title) {
+        $pdf->SetFont('helvetica', 'B', 12); // Bold font with larger size for title
+    } else {
+        $pdf->SetFont('helvetica', '', 10); // Normal font for regular bars
+    }
+    $pdf->SetTextColor(0, 0, 0);
     $pdf->Cell($quiz_title_width, 4, $quiz_title, 0, 0, 'L'); // Left align text
+    
+    // Add progress value before the bar
+    if ($is_title) {
+        $pdf->SetFont('helvetica', 'B', 9); // Bold font for title percentage
+    } else {
+        $pdf->SetFont('helvetica', '', 9); // Normal font for regular percentage
+    }
+    $pdf->SetTextColor(0, 0, 0);
+    
+    $progress_x = $x_pos - 15; // Position progress value to the left of the bar
+    $progress_y = $y_pos + (($background_height - 4) / 2); // Center text vertically with the bars
+    $pdf->SetXY($progress_x, $progress_y);
+    $pdf->Cell(14, 4, $width . '', 0, 0, 'R'); // Right align progress value with % sign
     
     // Draw the current colored bar on top (centered vertically within the background)
     if ($is_title) {
