@@ -26,7 +26,7 @@
     
     // Draw a ruler (10cm physical length, 0-100 scale)
     $ruler_start_x = $padding_x + $quiz_title_width + 10; // Start position for ruler (same as bars)
-    $ruler_start_y = $padding_y + 25; // Start position above the bars
+    $ruler_start_y = $padding_y + 65; // Start position above the bars
     $ruler_length = $bar_area_width; // Use available width for ruler
     $ruler_height = 15;
 
@@ -45,6 +45,7 @@
         $pdf->Line($x_pos, $ruler_start_y + $diff, $x_pos, $ruler_start_y + $diff + $line_height);
         
         // Center text between the tick marks at the ruler base line
+        $pdf->SetFont('helvetica', '', 8); // Set small font size for ruler
         $pdf->SetXY($x_pos - 5, $ruler_start_y+2);
         $pdf->Cell(10, 4, $i, 0, 0, 'C', false, '', 0, false, 'T', 'M');
     }
@@ -239,7 +240,7 @@ add_action( 'admin_init', function() {
     ];
     
     $margin_top = 7; // Margin top for each bar
-    $current_y = $padding_y + 40; // Starting Y position
+    $current_y = $padding_y + 100; // Starting Y position
     
     // Draw ruler first
     ruler($pdf);
