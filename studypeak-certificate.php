@@ -41,12 +41,30 @@
 
  function bar($pdf,$width) {
     $bar_width = $width;
-    $bar_height = 7;
+    $background_height = 7;
+    $bar_height = 4; // Lower height for the blue bar
     $x_pos = 50;
     $y_pos = 80;
+    
+    // Draw gray background with 5 pieces with padding between each
+    $gray_color = [242, 240, 240]; // Light gray color
+    $pdf->SetFillColor($gray_color[0], $gray_color[1], $gray_color[2]);
+    
+    $total_width = 100; // Match ruler width
+    $padding = 1; // More padding between pieces
+    $piece_width = ($total_width - (4 * $padding)) / 5; // Calculate piece width to fit 5 pieces with 4 paddings in 100 units
+    
+    // Draw 5 gray background pieces with padding
+    for ($i = 0; $i < 5; $i++) {
+        $piece_x = $x_pos + ($i * ($piece_width + $padding));
+        $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F'); // 'FD' = Fill and Draw border
+    }
+    
+    // Draw the current colored bar on top (centered vertically within the background)
     $color = [54, 162, 235];
     $pdf->SetFillColor($color[0], $color[1], $color[2]);
-    $pdf->Rect($x_pos, $y_pos, $bar_width, $bar_height, 'F');
+    $bar_y_pos = $y_pos + (($background_height - $bar_height) / 2); // Center the blue bar vertically
+    $pdf->Rect($x_pos, $bar_y_pos, $bar_width, $bar_height, 'F');
  }
 
 add_action( 'admin_init', function() {
