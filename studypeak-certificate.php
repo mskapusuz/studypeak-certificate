@@ -13,9 +13,15 @@
  */
 
  function ruler($pdf) {
+    // Calculate 10% padding for positioning
+    $page_width = $pdf->getPageWidth();
+    $page_height = $pdf->getPageHeight();
+    $padding_x = $page_width * 0.1; // 10% of page width
+    $padding_y = $page_height * 0.1; // 10% of page height
+    
     // Draw a ruler (10cm physical length, 0-100 scale)
-    $ruler_start_x = 50;
-    $ruler_start_y = 50;
+    $ruler_start_x = $padding_x + 30; // Start position with padding
+    $ruler_start_y = $padding_y + 40; // Start position with padding
     $ruler_length = 100; // 10cm in PDF units (assuming 10 units = 1cm)
     $ruler_height = 15;
 
@@ -43,22 +49,44 @@
     $bar_width = $width;
     $background_height = 7;
     $bar_height = 4; // Lower height for the blue bar
-    $x_pos = 50;
-    $y_pos = 80;
+    
+    // Calculate 10% padding for positioning
+    $page_width = $pdf->getPageWidth();
+    $page_height = $pdf->getPageHeight();
+    $padding_x = $page_width * 0.1; // 10% of page width
+    $padding_y = $page_height * 0.1; // 10% of page height
+    
+    // Calculate available width after padding
+    $available_width = $page_width - (2 * $padding_x);
+    $quiz_title_width = 40; // Width for quiz title
+    $bar_area_width = $available_width - $quiz_title_width - 10; // 10 units gap between title and bars
+    
+    $x_pos = $padding_x + $quiz_title_width + 10; // Start position for bars (after title + gap)
+    $y_pos = $padding_y + 60; // Start position with padding
     
     // Draw gray background with 5 pieces with padding between each
     $gray_color = [242, 240, 240]; // Light gray color
     $pdf->SetFillColor($gray_color[0], $gray_color[1], $gray_color[2]);
     
-    $total_width = 100; // Match ruler width
+    $total_width = $bar_area_width; // Use available width for bars
     $padding = 1; // More padding between pieces
-    $piece_width = ($total_width - (4 * $padding)) / 5; // Calculate piece width to fit 5 pieces with 4 paddings in 100 units
+    $piece_width = ($total_width - (4 * $padding)) / 5; // Calculate piece width to fit 5 pieces with 4 paddings
     
     // Draw 5 gray background pieces with padding
     for ($i = 0; $i < 5; $i++) {
         $piece_x = $x_pos + ($i * ($piece_width + $padding));
         $pdf->Rect($piece_x, $y_pos, $piece_width, $background_height, 'F'); // 'FD' = Fill and Draw border
     }
+    
+    // Add quiz title on the left side of the bars
+    $quiz_title = "Quiz Title"; // You can modify this or pass it as a parameter
+    $pdf->SetFont('helvetica', '', 10);
+    $pdf->SetTextColor(0, 0, 0);
+    
+    $text_x = $padding_x; // Position text at the left edge with padding
+    $text_y = $y_pos + (($background_height - 4) / 2); // Center text vertically with the bars
+    $pdf->SetXY($text_x, $text_y);
+    $pdf->Cell($quiz_title_width, 4, $quiz_title, 0, 0, 'L'); // Left align text
     
     // Draw the current colored bar on top (centered vertically within the background)
     $color = [54, 162, 235];
@@ -88,16 +116,22 @@ add_action( 'admin_init', function() {
     $pdf->setPrintHeader(false);
     $pdf->setPrintFooter(false);
 
-    // Set margins
-    $pdf->SetMargins(20, 20, 20);
-
-    // Add a page
+    // Add a page first
     $pdf->AddPage();
+    
+    // Calculate 10% padding
+    $page_width = $pdf->getPageWidth();
+    $page_height = $pdf->getPageHeight();
+    $padding_x = $page_width * 0.1; // 10% of page width
+    $padding_y = $page_height * 0.1; // 10% of page height
+    
+    // Set margins to 0 and we'll handle positioning manually
+    $pdf->SetMargins(0, 0, 0);
 
-    // Set font
+    // Set font and position title with padding
     $pdf->SetFont('helvetica', 'B', 16);
-    $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'C');
-    $pdf->Ln(10);
+    $pdf->SetXY($padding_x, $padding_y + 10);
+    $pdf->Cell($page_width - (2 * $padding_x), 10, 'Student Performance Chart', 0, 1, 'C');
 
     // Draw a single bar (no graph)
     bar($pdf, 60);
