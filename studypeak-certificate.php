@@ -226,7 +226,7 @@ add_action( 'admin_init', function() {
         }
         
         // Draw category title bar
-        $category_progress = array_sum(array_column($sub_quizzes, 'progress')) / count($sub_quizzes); // Average progress
+        $category_progress = round(array_sum(array_column($sub_quizzes, 'progress')) / count($sub_quizzes)); // Average progress rounded
         bar_with_position($pdf, $category_progress, true, $category_title, $current_y);
         $current_y += $margin_top;
         
