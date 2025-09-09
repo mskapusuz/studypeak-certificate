@@ -19,10 +19,15 @@
     $padding_x = $page_width * 0.1; // 10% of page width
     $padding_y = $page_height * 0.1; // 10% of page height
     
+    // Calculate available width after padding
+    $available_width = $page_width - (2 * $padding_x);
+    $quiz_title_width = 40; // Width for quiz title
+    $bar_area_width = $available_width - $quiz_title_width - 10; // 10 units gap between title and bars
+    
     // Draw a ruler (10cm physical length, 0-100 scale)
-    $ruler_start_x = $padding_x + 30; // Start position with padding
+    $ruler_start_x = $padding_x + $quiz_title_width + 10; // Start position for ruler (same as bars)
     $ruler_start_y = $padding_y + 40; // Start position with padding
-    $ruler_length = 100; // 10cm in PDF units (assuming 10 units = 1cm)
+    $ruler_length = $bar_area_width; // Use available width for ruler
     $ruler_height = 15;
 
     // Major marks every 10 scale units (every 1cm physically)
@@ -45,7 +50,7 @@
     }
  }
 
- function bar($pdf,$width) {
+ function bar($pdf,$width, $is_title = false) {
     $bar_width = $width;
     $background_height = 7;
     $bar_height = 4; // Lower height for the blue bar
@@ -80,7 +85,8 @@
     
     // Add quiz title on the left side of the bars
     $quiz_title = "Quiz Title"; // You can modify this or pass it as a parameter
-    $pdf->SetFont('helvetica', '', 10);
+    $font_style = $is_title ? 'B' : ''; // Bold if title, normal if not
+    $pdf->SetFont('helvetica', $font_style, 10);
     $pdf->SetTextColor(0, 0, 0);
     
     $text_x = $padding_x; // Position text at the left edge with padding
@@ -134,7 +140,7 @@ add_action( 'admin_init', function() {
     $pdf->Cell($page_width - (2 * $padding_x), 10, 'Student Performance Chart', 0, 1, 'C');
 
     // Draw a single bar (no graph)
-    bar($pdf, 60);
+    bar($pdf, 60, true);
 
     // Reset text color to black
     $pdf->SetTextColor(0, 0, 0);
