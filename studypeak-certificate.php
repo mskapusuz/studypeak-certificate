@@ -495,7 +495,10 @@ add_action( 'admin_init', function() {
                 // Create progress bars for each lesson in the section
                 $lesson_bars = [];
                 foreach ($lessons as $lesson_id) {
-                    $lesson_title = "Lesson " . $lesson_id; // Default title
+                    // Get lesson title from LearnDash
+                    $lesson_post = get_post($lesson_id);
+                    $lesson_title = $lesson_post ? $lesson_post->post_title : "Lesson " . $lesson_id;
+                    
                     $progress = rand(50, 100);
                     $lesson_bars[] = [
                         'title' => $lesson_title,
