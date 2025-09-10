@@ -466,7 +466,7 @@ add_action('save_post', function($post_id) {
 });
 
 add_action( 'init', function() {
-    if(!isset($_GET['studypeak-certificate']) || !isset($_GET['course-id'])) {
+    if(!isset($_GET['certificate']) || !isset($_GET['course-id'])) {
         return;
     }
 
