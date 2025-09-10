@@ -575,13 +575,13 @@ add_action( 'init', function() {
     $graph_height = 25;
     
     // Call the normal distribution function
-    draw_normal_distribution($pdf, $graph_start_x, $graph_start_y, $graph_width, $graph_height);
+    //draw_normal_distribution($pdf, $graph_start_x, $graph_start_y, $graph_width, $graph_height);
     
     // Update starting position for bars to be below the graph with spacing
     $current_y = $graph_start_y + $graph_height + 20; // Starting Y position (below logo, title, and graph with spacing)
     
     // Draw ruler first
-    ruler($pdf);
+    //ruler($pdf);
     
     // Add spacing between ruler and first bar
     $current_y += 15; // Extra spacing between ruler and first bar
