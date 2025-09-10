@@ -394,30 +394,35 @@ function get_lesson_quiz_avg_score($quiz_attemps, $lesson_id) {
         return 0;
     }
     
-    $total_percentage = 0;
-    $attempt_count = 0;
+    $last_attempt = null;
+    $latest_time = 0;
     
-    // Filter quiz attempts for the specific lesson and calculate average
+    // Find the most recent attempt for the specific lesson
     foreach ($quiz_attemps as $attempt) {
         // Check if this attempt belongs to the specified lesson
         if (isset($attempt['lesson']) && $attempt['lesson'] == $lesson_id) {
-            // Use percentage if available, otherwise calculate from points
-            if (isset($attempt['percentage']) && is_numeric($attempt['percentage'])) {
-                $total_percentage += $attempt['percentage'];
-                $attempt_count++;
-            } elseif (isset($attempt['points']) && isset($attempt['total_points']) && 
-                     is_numeric($attempt['points']) && is_numeric($attempt['total_points']) && 
-                     $attempt['total_points'] > 0) {
-                // Calculate percentage from points
-                $percentage = ($attempt['points'] / $attempt['total_points']) * 100;
-                $total_percentage += $percentage;
-                $attempt_count++;
+            // Check if this is the most recent attempt based on completion time
+            if (isset($attempt['completed']) && $attempt['completed'] > $latest_time) {
+                $latest_time = $attempt['completed'];
+                $last_attempt = $attempt;
             }
         }
     }
     
-    // Return average percentage or 0 if no attempts found
-    return $attempt_count > 0 ? round($total_percentage / $attempt_count, 2) : 0;
+    // Return percentage from the last attempt or 0 if no attempts found
+    if ($last_attempt) {
+        // Use percentage if available, otherwise calculate from points
+        if (isset($last_attempt['percentage']) && is_numeric($last_attempt['percentage'])) {
+            return $last_attempt['percentage'];
+        } elseif (isset($last_attempt['points']) && isset($last_attempt['total_points']) && 
+                 is_numeric($last_attempt['points']) && is_numeric($last_attempt['total_points']) && 
+                 $last_attempt['total_points'] > 0) {
+            // Calculate percentage from points
+            return round(($last_attempt['points'] / $last_attempt['total_points']) * 100, 2);
+        }
+    }
+    
+    return 0;
 }
 
 // Save metabox data
