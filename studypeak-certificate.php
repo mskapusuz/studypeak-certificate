@@ -483,23 +483,50 @@ add_action( 'admin_init', function() {
     $pdf->SetXY($padding_x, $effective_content_start_y);
     $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'L');
 
-    // Draw multiple bars with multi-dimensional structure
-    $bars_data = [
-        'Mathematics' => [
-            ['title' => 'Algebra', 'progress' => 85],
-            ['title' => 'Geometry', 'progress' => 75],
-            ['title' => 'Calculus', 'progress' => 60]
-        ],
-        'Science' => [
-            ['title' => 'Physics', 'progress' => 70],
-            ['title' => 'Chemistry', 'progress' => 65],
-            ['title' => 'Biology', 'progress' => 80]
-        ],
-        'English' => [
-            ['title' => 'Literature', 'progress' => 90],
-            ['title' => 'Grammar', 'progress' => 55]
-        ]
-    ];
+    // Transform $sections into $bars_data format
+    $bars_data = [];
+    
+    if (!empty($sections) && is_array($sections)) {
+        foreach ($sections as $section) {
+            if (isset($section['title']) && isset($section['lessons']) && is_array($section['lessons'])) {
+                $section_title = $section['title'];
+                $lessons = $section['lessons'];
+                
+                // Create progress bars for each lesson in the section
+                $lesson_bars = [];
+                foreach ($lessons as $lesson_id) {
+                    $lesson_title = "Lesson " . $lesson_id; // Default title
+                    $progress = rand(50, 100);
+                    $lesson_bars[] = [
+                        'title' => $lesson_title,
+                        'progress' => $progress
+                    ];
+                }
+                
+                $bars_data[$section_title] = $lesson_bars;
+            }
+        }
+    }
+    
+    // Fallback to default data if no sections are available
+    if (empty($bars_data)) {
+        $bars_data = [
+            'Mathematics' => [
+                ['title' => 'Algebra', 'progress' => 85],
+                ['title' => 'Geometry', 'progress' => 75],
+                ['title' => 'Calculus', 'progress' => 60]
+            ],
+            'Science' => [
+                ['title' => 'Physics', 'progress' => 70],
+                ['title' => 'Chemistry', 'progress' => 65],
+                ['title' => 'Biology', 'progress' => 80]
+            ],
+            'English' => [
+                ['title' => 'Literature', 'progress' => 90],
+                ['title' => 'Grammar', 'progress' => 55]
+            ]
+        ];
+    }
     
     $margin_top = 7; // Margin top for each bar
     $current_y = $effective_content_start_y + 80; // Starting Y position (below logo and title)
