@@ -112,7 +112,7 @@ function ruler($pdf) {
     
     // Calculate available width after padding
     $available_width = $page_width - (2 * $padding_x);
-    $quiz_title_width = 40; // Width for quiz title
+    $quiz_title_width = 60; // Width for quiz title (increased to make right section narrower)
     $bar_area_width = $available_width - $quiz_title_width - 10; // 10 units gap between title and bars
     
     // Draw a ruler (10cm physical length, 0-100 scale)
@@ -155,7 +155,7 @@ function ruler($pdf) {
     
     // Calculate available width after padding
     $available_width = $page_width - (2 * $padding_x);
-    $quiz_title_width = 40; // Width for quiz title
+    $quiz_title_width = 60; // Width for quiz title (increased to make right section narrower)
     $bar_area_width = $available_width - $quiz_title_width - 10; // 10 units gap between title and bars
     
     $x_pos = $padding_x + $quiz_title_width + 10; // Start position for bars (after title + gap)
@@ -537,7 +537,7 @@ add_action( 'admin_init', function() {
     // Draw the normal distribution graph (smaller, above ruler)
     $graph_start_x = $padding_x;
     $graph_start_y = $effective_content_start_y + 20;
-    $graph_width = 80;
+    $graph_width = 40;
     $graph_height = 25;
     
     // Call the normal distribution function
