@@ -465,7 +465,7 @@ add_action('save_post', function($post_id) {
     }
 });
 
-add_action( 'admin_init', function() {
+add_action( 'init', function() {
     if(!isset($_GET['studypeak-certificate']) || !isset($_GET['course-id'])) {
         return;
     }
@@ -474,6 +474,11 @@ add_action( 'admin_init', function() {
 
     // Get all quiz attempts for the current user.
     $current_user_id = get_current_user_id();
+
+    if( $current_user_id < 1 ) {
+        return false;
+    }
+
     $quiz_attempts = get_user_meta( $current_user_id, '_sfwd-quizzes', true );
     if ( empty( $quiz_attempts ) || ! is_array( $quiz_attempts ) ) {
         return false;
