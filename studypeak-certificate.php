@@ -429,9 +429,13 @@ add_action('save_post', function($post_id) {
 });
 
 add_action( 'admin_init', function() {
-    if(!isset($_GET['studypeak-certificate']) ) {
+    if(!isset($_GET['studypeak-certificate']) || !isset($_GET['course-id'])) {
         return;
     }
+
+    $course_id = intval( $_GET['course-id'] );
+
+    $sections = get_post_meta($course_id, '_studypeak_pdf_sections', true);
 
     // Include the Composer autoloader
     require_once plugin_dir_path(__FILE__) . 'vendor/autoload.php';
