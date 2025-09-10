@@ -12,7 +12,98 @@
  * @package         Studypeak_Certificate
  */
 
- function ruler($pdf) {
+ function draw_normal_distribution($pdf, $start_x, $start_y, $width = 80, $height = 25) {
+    // Draw the normal distribution graph
+    $graph_start_x = $start_x;
+    $graph_start_y = $start_y;
+    $graph_width = $width;
+    $graph_height = $height;
+    
+    // Draw axes
+    $pdf->SetLineWidth(0.5);
+    $pdf->Line($graph_start_x, $graph_start_y + $graph_height, $graph_start_x + $graph_width, $graph_start_y + $graph_height); // X-axis
+    $pdf->Line($graph_start_x, $graph_start_y, $graph_start_x, $graph_start_y + $graph_height); // Y-axis
+    
+    // Draw normal distribution curve
+    $pdf->SetLineWidth(1);
+    $pdf->SetDrawColor(0, 0, 255); // Blue curve
+    
+    // Calculate points for normal distribution curve (simplified)
+    $center_x = $graph_start_x + ($graph_width / 2);
+    $center_y = $graph_start_y + $graph_height;
+    
+    // Draw curve using multiple line segments
+    $prev_x = $graph_start_x;
+    $prev_y = $center_y;
+    
+    for ($i = 0; $i <= 100; $i++) {
+        $x = $graph_start_x + ($i * $graph_width / 100);
+        $normalized_x = ($i - 50) / 16.67; // Scale to approximately -3 to +3
+        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
+        
+        if ($i > 0) {
+            $pdf->Line($prev_x, $prev_y, $x, $y);
+        }
+        $prev_x = $x;
+        $prev_y = $y;
+    }
+    
+    // Fill the area under the curve
+    $pdf->SetFillColor(200, 200, 255); // Light blue fill
+    $pdf->SetDrawColor(200, 200, 255);
+    
+    // Create filled area using polygon
+    $points = [];
+    $points[] = $graph_start_x; // Start point
+    $points[] = $center_y;
+    
+    for ($i = 0; $i <= 100; $i++) {
+        $x = $graph_start_x + ($i * $graph_width / 100);
+        $normalized_x = ($i - 50) / 16.67;
+        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
+        $points[] = $x;
+        $points[] = $y;
+    }
+    
+    $points[] = $graph_start_x + $graph_width; // End point
+    $points[] = $center_y;
+    
+    $pdf->Polygon($points, 'F');
+    
+    // Add labels
+    $pdf->SetFont('helvetica', '', 8);
+    $pdf->SetTextColor(0, 0, 0);
+    
+    // X-axis labels
+    $pdf->SetXY($graph_start_x - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '-3', 0, 0, 'C');
+    
+    $pdf->SetXY($center_x - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '0', 0, 0, 'C');
+    
+    $pdf->SetXY($graph_start_x + $graph_width - 5, $center_y + 2);
+    $pdf->Cell(10, 4, '+3', 0, 0, 'C');
+    
+    // Center label "m"
+    $pdf->SetXY($center_x - 3, $center_y + 8);
+    $pdf->Cell(6, 4, 'm', 0, 0, 'C');
+    
+    // Low/High labels
+    $pdf->SetXY($graph_start_x - 8, $center_y + 8);
+    $pdf->Cell(16, 4, 'niedrig', 0, 0, 'C');
+    
+    $pdf->SetXY($graph_start_x + $graph_width - 8, $center_y + 8);
+    $pdf->Cell(16, 4, 'hoch', 0, 0, 'C');
+    
+    // Add observed value dot (removed yellow dot)
+    // $pdf->SetFillColor(255, 255, 0); // Yellow
+    // $pdf->SetDrawColor(255, 255, 0);
+    // $observed_x = $center_x + 5; // Slightly above 0
+    // $observed_y = $center_y - (exp(-(0.6 * 0.6) / 1) * $graph_height * 0.8);
+    // $pdf->Circle($observed_x, $observed_y, 1.5, 0, 360, 'F');
+}
+
+function ruler($pdf) {
     // Calculate padding for positioning (matching main function)
     $page_width = $pdf->getPageWidth();
     $page_height = $pdf->getPageHeight();
@@ -220,88 +311,8 @@ add_action( 'admin_init', function() {
     $graph_width = 80;
     $graph_height = 25;
     
-    // Draw axes
-    $pdf->SetLineWidth(0.5);
-    $pdf->Line($graph_start_x, $graph_start_y + $graph_height, $graph_start_x + $graph_width, $graph_start_y + $graph_height); // X-axis
-    $pdf->Line($graph_start_x, $graph_start_y, $graph_start_x, $graph_start_y + $graph_height); // Y-axis
-    
-    // Draw normal distribution curve
-    $pdf->SetLineWidth(1);
-    $pdf->SetDrawColor(0, 0, 255); // Blue curve
-    
-    // Calculate points for normal distribution curve (simplified)
-    $center_x = $graph_start_x + ($graph_width / 2);
-    $center_y = $graph_start_y + $graph_height;
-    
-    // Draw curve using multiple line segments
-    $prev_x = $graph_start_x;
-    $prev_y = $center_y;
-    
-    for ($i = 0; $i <= 100; $i++) {
-        $x = $graph_start_x + ($i * $graph_width / 100);
-        $normalized_x = ($i - 50) / 16.67; // Scale to approximately -3 to +3
-        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
-        
-        if ($i > 0) {
-            $pdf->Line($prev_x, $prev_y, $x, $y);
-        }
-        $prev_x = $x;
-        $prev_y = $y;
-    }
-    
-    // Fill the area under the curve
-    $pdf->SetFillColor(200, 200, 255); // Light blue fill
-    $pdf->SetDrawColor(200, 200, 255);
-    
-    // Create filled area using polygon
-    $points = [];
-    $points[] = $graph_start_x; // Start point
-    $points[] = $center_y;
-    
-    for ($i = 0; $i <= 100; $i++) {
-        $x = $graph_start_x + ($i * $graph_width / 100);
-        $normalized_x = ($i - 50) / 16.67;
-        $y = $center_y - (exp(-($normalized_x * $normalized_x) / 2) * $graph_height * 0.8);
-        $points[] = $x;
-        $points[] = $y;
-    }
-    
-    $points[] = $graph_start_x + $graph_width; // End point
-    $points[] = $center_y;
-    
-    $pdf->Polygon($points, 'F');
-    
-    // Add labels
-    $pdf->SetFont('helvetica', '', 8);
-    $pdf->SetTextColor(0, 0, 0);
-    
-    // X-axis labels
-    $pdf->SetXY($graph_start_x - 5, $center_y + 2);
-    $pdf->Cell(10, 4, '-3', 0, 0, 'C');
-    
-    $pdf->SetXY($center_x - 5, $center_y + 2);
-    $pdf->Cell(10, 4, '0', 0, 0, 'C');
-    
-    $pdf->SetXY($graph_start_x + $graph_width - 5, $center_y + 2);
-    $pdf->Cell(10, 4, '+3', 0, 0, 'C');
-    
-    // Center label "m"
-    $pdf->SetXY($center_x - 3, $center_y + 8);
-    $pdf->Cell(6, 4, 'm', 0, 0, 'C');
-    
-    // Low/High labels
-    $pdf->SetXY($graph_start_x - 8, $center_y + 8);
-    $pdf->Cell(16, 4, 'niedrig', 0, 0, 'C');
-    
-    $pdf->SetXY($graph_start_x + $graph_width - 8, $center_y + 8);
-    $pdf->Cell(16, 4, 'hoch', 0, 0, 'C');
-    
-    // Add observed value dot (removed yellow dot)
-    // $pdf->SetFillColor(255, 255, 0); // Yellow
-    // $pdf->SetDrawColor(255, 255, 0);
-    // $observed_x = $center_x + 5; // Slightly above 0
-    // $observed_y = $center_y - (exp(-(0.6 * 0.6) / 1) * $graph_height * 0.8);
-    // $pdf->Circle($observed_x, $observed_y, 1.5, 0, 360, 'F');
+    // Call the normal distribution function
+    draw_normal_distribution($pdf, $graph_start_x, $graph_start_y, $graph_width, $graph_height);
     
     // Update starting position for bars to be below the graph with spacing
     $current_y = $graph_start_y + $graph_height + 20; // Starting Y position (below logo, title, and graph with spacing)
