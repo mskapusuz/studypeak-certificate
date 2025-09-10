@@ -233,6 +233,201 @@ function ruler($pdf) {
     $pdf->RoundedRect($x_pos, $bar_y_pos, $bar_width, $bar_height, 0.5, '1111', 'F');
  }
 
+// Add metabox for LearnDash courses
+add_action('add_meta_boxes', function() {
+    add_meta_box(
+        'studypeak_pdf_certificate_sections',
+        'PDF Certificate Sections',
+        'studypeak_pdf_certificate_metabox_callback',
+        'sfwd-courses',
+        'normal',
+        'high'
+    );
+});
+
+// Metabox callback function
+function studypeak_pdf_certificate_metabox_callback($post) {
+    // Add nonce for security
+    wp_nonce_field('studypeak_pdf_certificate_metabox', 'studypeak_pdf_certificate_nonce');
+    
+    // Get saved sections data
+    $sections = get_post_meta($post->ID, '_studypeak_pdf_sections', true);
+    if (!is_array($sections)) {
+        $sections = [];
+    }
+    
+    // Get all lessons for this course
+    $lessons = learndash_get_course_lessons_list($post->ID);
+    if (!is_array($lessons)) {
+        $lessons = [];
+    }
+    
+    ?>
+    <div id="studypeak-pdf-sections">
+        <style>
+            .studypeak-section {
+                border: 1px solid #ddd;
+                margin: 10px 0;
+                padding: 15px;
+                background: #f9f9f9;
+            }
+            .studypeak-section h4 {
+                margin-top: 0;
+                color: #333;
+            }
+            .studypeak-section input[type="text"] {
+                width: 100%;
+                padding: 8px;
+                margin: 5px 0;
+            }
+            .studypeak-section select {
+                width: 100%;
+                min-height: 100px;
+                padding: 5px;
+            }
+            .studypeak-remove-section {
+                background: #dc3232;
+                color: white;
+                border: none;
+                padding: 5px 10px;
+                cursor: pointer;
+                float: right;
+            }
+            .studypeak-remove-section:hover {
+                background: #a00;
+            }
+            #add-section-btn {
+                background: #0073aa;
+                color: white;
+                border: none;
+                padding: 10px 20px;
+                cursor: pointer;
+                margin: 10px 0;
+            }
+            #add-section-btn:hover {
+                background: #005a87;
+            }
+        </style>
+        
+        <div id="sections-container">
+            <?php foreach ($sections as $index => $section): ?>
+                <div class="studypeak-section" data-index="<?php echo $index; ?>">
+                    <h4>Section <?php echo $index + 1; ?></h4>
+                    <button type="button" class="studypeak-remove-section" onclick="removeSection(<?php echo $index; ?>)">Remove Section</button>
+                    
+                    <label for="section_title_<?php echo $index; ?>">Section Title:</label>
+                    <input type="text" 
+                           id="section_title_<?php echo $index; ?>" 
+                           name="studypeak_sections[<?php echo $index; ?>][title]" 
+                           value="<?php echo esc_attr($section['title'] ?? ''); ?>" 
+                           placeholder="Enter section title">
+                    
+                    <label for="section_lessons_<?php echo $index; ?>">Select Lessons:</label>
+                    <select id="section_lessons_<?php echo $index; ?>" 
+                            name="studypeak_sections[<?php echo $index; ?>][lessons][]" 
+                            multiple>
+                        <?php foreach ($lessons as $lesson): ?>
+                            <option value="<?php echo $lesson['post']->ID; ?>" 
+                                    <?php selected(in_array($lesson['post']->ID, $section['lessons'] ?? [])); ?>>
+                                <?php echo esc_html($lesson['post']->post_title); ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+            <?php endforeach; ?>
+        </div>
+        
+        <button type="button" id="add-section-btn" onclick="addSection()">Add Section</button>
+        
+        <script>
+            let sectionIndex = <?php echo intval(count($sections)); ?>;
+            const lessons = <?php echo wp_json_encode($lessons); ?>;
+            
+            function addSection() {
+                const container = document.getElementById('sections-container');
+                const sectionDiv = document.createElement('div');
+                sectionDiv.className = 'studypeak-section';
+                sectionDiv.setAttribute('data-index', sectionIndex);
+                
+                let lessonsOptions = '';
+                if (lessons && lessons.length > 0) {
+                    lessons.forEach(function(lesson) {
+                        if (lesson && lesson.post) {
+                            lessonsOptions += '<option value="' + lesson.post.ID + '">' + lesson.post.post_title + '</option>';
+                        }
+                    });
+                }
+                
+                sectionDiv.innerHTML = 
+                    '<h4>Section ' + (sectionIndex + 1) + '</h4>' +
+                    '<button type="button" class="studypeak-remove-section" onclick="removeSection(' + sectionIndex + ')">Remove Section</button>' +
+                    '<label for="section_title_' + sectionIndex + '">Section Title:</label>' +
+                    '<input type="text" ' +
+                           'id="section_title_' + sectionIndex + '" ' +
+                           'name="studypeak_sections[' + sectionIndex + '][title]" ' +
+                           'placeholder="Enter section title">' +
+                    '<label for="section_lessons_' + sectionIndex + '">Select Lessons:</label>' +
+                    '<select id="section_lessons_' + sectionIndex + '" ' +
+                            'name="studypeak_sections[' + sectionIndex + '][lessons][]" ' +
+                            'multiple>' +
+                        lessonsOptions +
+                    '</select>';
+                
+                container.appendChild(sectionDiv);
+                sectionIndex++;
+            }
+            
+            function removeSection(index) {
+                const section = document.querySelector('[data-index="' + index + '"]');
+                if (section) {
+                    section.remove();
+                }
+            }
+        </script>
+    </div>
+    <?php
+}
+
+// Save metabox data
+add_action('save_post', function($post_id) {
+    // Check if this is an autosave
+    if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+        return;
+    }
+    
+    // Check if this is a course post type
+    if (get_post_type($post_id) !== 'sfwd-courses') {
+        return;
+    }
+    
+    // Check nonce
+    if (!isset($_POST['studypeak_pdf_certificate_nonce']) || 
+        !wp_verify_nonce($_POST['studypeak_pdf_certificate_nonce'], 'studypeak_pdf_certificate_metabox')) {
+        return;
+    }
+    
+    // Check user permissions
+    if (!current_user_can('edit_post', $post_id)) {
+        return;
+    }
+    
+    // Save sections data
+    if (isset($_POST['studypeak_sections'])) {
+        $sections = [];
+        foreach ($_POST['studypeak_sections'] as $section_data) {
+            if (!empty($section_data['title'])) {
+                $sections[] = [
+                    'title' => sanitize_text_field($section_data['title']),
+                    'lessons' => array_map('intval', $section_data['lessons'] ?? [])
+                ];
+            }
+        }
+        update_post_meta($post_id, '_studypeak_pdf_sections', $sections);
+    } else {
+        delete_post_meta($post_id, '_studypeak_pdf_sections');
+    }
+});
+
 add_action( 'admin_init', function() {
     if(!isset($_GET['studypeak-certificate']) ) {
         return;
