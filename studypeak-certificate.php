@@ -580,7 +580,7 @@ add_action( 'init', function() {
     //draw_normal_distribution($pdf, $graph_start_x, $graph_start_y, $graph_width, $graph_height);
     
     // Update starting position for bars to be below the graph with spacing
-    $current_y = $graph_start_y + $graph_height + 20; // Starting Y position (below logo, title, and graph with spacing)
+    $current_y = $effective_content_start_y + 10; // Starting Y position (below logo, title, and graph with spacing)
     
     // Draw ruler first
     //ruler($pdf);
