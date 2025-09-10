@@ -12,6 +12,8 @@
  * @package         Studypeak_Certificate
  */
 
+ defined( 'ABSPATH' ) || exit;
+
  function draw_normal_distribution($pdf, $start_x, $start_y, $width = 80, $height = 25) {
     // Draw the normal distribution graph
     $graph_start_x = $start_x;
