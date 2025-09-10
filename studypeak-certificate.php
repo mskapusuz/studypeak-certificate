@@ -559,7 +559,12 @@ add_action( 'admin_init', function() {
     $current_y = $effective_content_start_y + 80; // Starting Y position (below logo and title)
     
     // Draw the normal distribution graph (smaller, above ruler)
-    $graph_start_x = $padding_x;
+    // Calculate available width after padding
+    $available_width = $page_width - (2 * $padding_x);
+    $quiz_title_width = 60; // Width for quiz title (increased to make right section narrower)
+    $bar_area_width = $available_width - $quiz_title_width - 10; // 10 units gap between title and bars
+    
+    $graph_start_x = $padding_x + $quiz_title_width + 10; // Align with ruler and bars
     $graph_start_y = $effective_content_start_y + 20;
     $graph_width = 40;
     $graph_height = 25;
