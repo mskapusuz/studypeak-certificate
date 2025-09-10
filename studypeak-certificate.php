@@ -388,6 +388,38 @@ function studypeak_pdf_certificate_metabox_callback($post) {
     <?php
 }
 
+function get_lesson_quiz_avg_score($quiz_attemps, $lesson_id) {
+    // Validate inputs
+    if (!is_array($quiz_attemps) || empty($quiz_attemps) || !$lesson_id) {
+        return 0;
+    }
+    
+    $total_percentage = 0;
+    $attempt_count = 0;
+    
+    // Filter quiz attempts for the specific lesson and calculate average
+    foreach ($quiz_attemps as $attempt) {
+        // Check if this attempt belongs to the specified lesson
+        if (isset($attempt['lesson']) && $attempt['lesson'] == $lesson_id) {
+            // Use percentage if available, otherwise calculate from points
+            if (isset($attempt['percentage']) && is_numeric($attempt['percentage'])) {
+                $total_percentage += $attempt['percentage'];
+                $attempt_count++;
+            } elseif (isset($attempt['points']) && isset($attempt['total_points']) && 
+                     is_numeric($attempt['points']) && is_numeric($attempt['total_points']) && 
+                     $attempt['total_points'] > 0) {
+                // Calculate percentage from points
+                $percentage = ($attempt['points'] / $attempt['total_points']) * 100;
+                $total_percentage += $percentage;
+                $attempt_count++;
+            }
+        }
+    }
+    
+    // Return average percentage or 0 if no attempts found
+    return $attempt_count > 0 ? round($total_percentage / $attempt_count, 2) : 0;
+}
+
 // Save metabox data
 add_action('save_post', function($post_id) {
     // Check if this is an autosave
@@ -434,6 +466,13 @@ add_action( 'admin_init', function() {
     }
 
     $course_id = intval( $_GET['course-id'] );
+
+    // Get all quiz attempts for the current user.
+    $current_user_id = get_current_user_id();
+    $quiz_attempts = get_user_meta( $current_user_id, '_sfwd-quizzes', true );
+    if ( empty( $quiz_attempts ) || ! is_array( $quiz_attempts ) ) {
+        return false;
+    }
 
     $sections = get_post_meta($course_id, '_studypeak_pdf_sections', true);
 
@@ -499,7 +538,7 @@ add_action( 'admin_init', function() {
                     $lesson_post = get_post($lesson_id);
                     $lesson_title = $lesson_post ? $lesson_post->post_title : "Lesson " . $lesson_id;
                     
-                    $progress = rand(50, 100);
+                    $progress = get_lesson_quiz_avg_score( $quiz_attempts, $lesson_id );
                     $lesson_bars[] = [
                         'title' => $lesson_title,
                         'progress' => $progress
@@ -509,26 +548,6 @@ add_action( 'admin_init', function() {
                 $bars_data[$section_title] = $lesson_bars;
             }
         }
-    }
-    
-    // Fallback to default data if no sections are available
-    if (empty($bars_data)) {
-        $bars_data = [
-            'Mathematics' => [
-                ['title' => 'Algebra', 'progress' => 85],
-                ['title' => 'Geometry', 'progress' => 75],
-                ['title' => 'Calculus', 'progress' => 60]
-            ],
-            'Science' => [
-                ['title' => 'Physics', 'progress' => 70],
-                ['title' => 'Chemistry', 'progress' => 65],
-                ['title' => 'Biology', 'progress' => 80]
-            ],
-            'English' => [
-                ['title' => 'Literature', 'progress' => 90],
-                ['title' => 'Grammar', 'progress' => 55]
-            ]
-        ];
     }
     
     $margin_top = 7; // Margin top for each bar
