@@ -287,7 +287,17 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                 min-height: 100px;
                 padding: 5px;
             }
-            .studypeak-remove-section {
+            .studypeak-subsection {
+                border: 1px solid #ccc;
+                margin: 10px 0;
+                padding: 10px;
+                background: #fff;
+            }
+            .studypeak-subsection h5 {
+                margin-top: 0;
+                color: #666;
+            }
+            .studypeak-remove-section, .studypeak-remove-subsection {
                 background: #dc3232;
                 color: white;
                 border: none;
@@ -295,10 +305,10 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                 cursor: pointer;
                 float: right;
             }
-            .studypeak-remove-section:hover {
+            .studypeak-remove-section:hover, .studypeak-remove-subsection:hover {
                 background: #a00;
             }
-            #add-section-btn {
+            #add-section-btn, .add-subsection-btn {
                 background: #0073aa;
                 color: white;
                 border: none;
@@ -306,8 +316,16 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                 cursor: pointer;
                 margin: 10px 0;
             }
-            #add-section-btn:hover {
+            #add-section-btn:hover, .add-subsection-btn:hover {
                 background: #005a87;
+            }
+            .add-subsection-btn {
+                background: #28a745;
+                padding: 5px 15px;
+                font-size: 12px;
+            }
+            .add-subsection-btn:hover {
+                background: #218838;
             }
         </style>
         
@@ -324,17 +342,37 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                            value="<?php echo esc_attr($section['title'] ?? ''); ?>" 
                            placeholder="Enter section title">
                     
-                    <label for="section_lessons_<?php echo $index; ?>">Select Lessons:</label>
-                    <select id="section_lessons_<?php echo $index; ?>" 
-                            name="studypeak_sections[<?php echo $index; ?>][lessons][]" 
-                            multiple>
-                        <?php foreach ($lessons as $lesson): ?>
-                            <option value="<?php echo $lesson['post']->ID; ?>" 
-                                    <?php selected(in_array($lesson['post']->ID, $section['lessons'] ?? [])); ?>>
-                                <?php echo esc_html($lesson['post']->post_title); ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
+                    <div class="subsections-container" data-section="<?php echo $index; ?>">
+                        <?php if (isset($section['subsections']) && is_array($section['subsections'])): ?>
+                            <?php foreach ($section['subsections'] as $sub_index => $subsection): ?>
+                                <div class="studypeak-subsection" data-section="<?php echo $index; ?>" data-subsection="<?php echo $sub_index; ?>">
+                                    <h5>Sub-section <?php echo $sub_index + 1; ?></h5>
+                                    <button type="button" class="studypeak-remove-subsection" onclick="removeSubsection(<?php echo $index; ?>, <?php echo $sub_index; ?>)">Remove Sub-section</button>
+                                    
+                                    <label for="subsection_title_<?php echo $index; ?>_<?php echo $sub_index; ?>">Sub-section Title:</label>
+                                    <input type="text" 
+                                           id="subsection_title_<?php echo $index; ?>_<?php echo $sub_index; ?>" 
+                                           name="studypeak_sections[<?php echo $index; ?>][subsections][<?php echo $sub_index; ?>][title]" 
+                                           value="<?php echo esc_attr($subsection['title'] ?? ''); ?>" 
+                                           placeholder="Enter sub-section title">
+                                    
+                                    <label for="subsection_lessons_<?php echo $index; ?>_<?php echo $sub_index; ?>">Select Lessons:</label>
+                                    <select id="subsection_lessons_<?php echo $index; ?>_<?php echo $sub_index; ?>" 
+                                            name="studypeak_sections[<?php echo $index; ?>][subsections][<?php echo $sub_index; ?>][lessons][]" 
+                                            multiple>
+                                        <?php foreach ($lessons as $lesson): ?>
+                                            <option value="<?php echo $lesson['post']->ID; ?>" 
+                                                    <?php selected(in_array($lesson['post']->ID, $subsection['lessons'] ?? [])); ?>>
+                                                <?php echo esc_html($lesson['post']->post_title); ?>
+                                            </option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
+                    
+                    <button type="button" class="add-subsection-btn" onclick="addSubsection(<?php echo $index; ?>)">Add Sub-section</button>
                 </div>
             <?php endforeach; ?>
         </div>
@@ -344,12 +382,44 @@ function studypeak_pdf_certificate_metabox_callback($post) {
         <script>
             let sectionIndex = <?php echo intval(count($sections)); ?>;
             const lessons = <?php echo wp_json_encode($lessons); ?>;
+            const subsectionCounters = {};
             
             function addSection() {
                 const container = document.getElementById('sections-container');
                 const sectionDiv = document.createElement('div');
                 sectionDiv.className = 'studypeak-section';
                 sectionDiv.setAttribute('data-index', sectionIndex);
+                
+                subsectionCounters[sectionIndex] = 0;
+                
+                sectionDiv.innerHTML = 
+                    '<h4>Section ' + (sectionIndex + 1) + '</h4>' +
+                    '<button type="button" class="studypeak-remove-section" onclick="removeSection(' + sectionIndex + ')">Remove Section</button>' +
+                    '<label for="section_title_' + sectionIndex + '">Section Title:</label>' +
+                    '<input type="text" ' +
+                           'id="section_title_' + sectionIndex + '" ' +
+                           'name="studypeak_sections[' + sectionIndex + '][title]" ' +
+                           'placeholder="Enter section title">' +
+                    '<div class="subsections-container" data-section="' + sectionIndex + '"></div>' +
+                    '<button type="button" class="add-subsection-btn" onclick="addSubsection(' + sectionIndex + ')">Add Sub-section</button>';
+                
+                container.appendChild(sectionDiv);
+                sectionIndex++;
+            }
+            
+            function addSubsection(sectionIndex) {
+                const container = document.querySelector('.subsections-container[data-section="' + sectionIndex + '"]');
+                if (!container) return;
+                
+                if (!subsectionCounters[sectionIndex]) {
+                    subsectionCounters[sectionIndex] = 0;
+                }
+                
+                const subsectionIndex = subsectionCounters[sectionIndex];
+                const subsectionDiv = document.createElement('div');
+                subsectionDiv.className = 'studypeak-subsection';
+                subsectionDiv.setAttribute('data-section', sectionIndex);
+                subsectionDiv.setAttribute('data-subsection', subsectionIndex);
                 
                 let lessonsOptions = '';
                 if (lessons && lessons.length > 0) {
@@ -360,31 +430,44 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                     });
                 }
                 
-                sectionDiv.innerHTML = 
-                    '<h4>Section ' + (sectionIndex + 1) + '</h4>' +
-                    '<button type="button" class="studypeak-remove-section" onclick="removeSection(' + sectionIndex + ')">Remove Section</button>' +
-                    '<label for="section_title_' + sectionIndex + '">Section Title:</label>' +
+                subsectionDiv.innerHTML = 
+                    '<h5>Sub-section ' + (subsectionIndex + 1) + '</h5>' +
+                    '<button type="button" class="studypeak-remove-subsection" onclick="removeSubsection(' + sectionIndex + ', ' + subsectionIndex + ')">Remove Sub-section</button>' +
+                    '<label for="subsection_title_' + sectionIndex + '_' + subsectionIndex + '">Sub-section Title:</label>' +
                     '<input type="text" ' +
-                           'id="section_title_' + sectionIndex + '" ' +
-                           'name="studypeak_sections[' + sectionIndex + '][title]" ' +
-                           'placeholder="Enter section title">' +
-                    '<label for="section_lessons_' + sectionIndex + '">Select Lessons:</label>' +
-                    '<select id="section_lessons_' + sectionIndex + '" ' +
-                            'name="studypeak_sections[' + sectionIndex + '][lessons][]" ' +
+                           'id="subsection_title_' + sectionIndex + '_' + subsectionIndex + '" ' +
+                           'name="studypeak_sections[' + sectionIndex + '][subsections][' + subsectionIndex + '][title]" ' +
+                           'placeholder="Enter sub-section title">' +
+                    '<label for="subsection_lessons_' + sectionIndex + '_' + subsectionIndex + '">Select Lessons:</label>' +
+                    '<select id="subsection_lessons_' + sectionIndex + '_' + subsectionIndex + '" ' +
+                            'name="studypeak_sections[' + sectionIndex + '][subsections][' + subsectionIndex + '][lessons][]" ' +
                             'multiple>' +
                         lessonsOptions +
                     '</select>';
                 
-                container.appendChild(sectionDiv);
-                sectionIndex++;
+                container.appendChild(subsectionDiv);
+                subsectionCounters[sectionIndex]++;
             }
             
             function removeSection(index) {
                 const section = document.querySelector('[data-index="' + index + '"]');
                 if (section) {
                     section.remove();
+                    delete subsectionCounters[index];
                 }
             }
+            
+            function removeSubsection(sectionIndex, subsectionIndex) {
+                const subsection = document.querySelector('[data-section="' + sectionIndex + '"][data-subsection="' + subsectionIndex + '"]');
+                if (subsection) {
+                    subsection.remove();
+                }
+            }
+            
+            // Initialize subsection counters for existing sections
+            <?php foreach ($sections as $index => $section): ?>
+                subsectionCounters[<?php echo $index; ?>] = <?php echo isset($section['subsections']) ? count($section['subsections']) : 0; ?>;
+            <?php endforeach; ?>
         </script>
     </div>
     <?php
@@ -427,6 +510,28 @@ function get_lesson_quiz_avg_score($quiz_attemps, $lesson_id) {
     return 0;
 }
 
+function get_subsection_avg_score($quiz_attempts, $lesson_ids) {
+    // Validate inputs
+    if (!is_array($quiz_attempts) || empty($quiz_attempts) || !is_array($lesson_ids) || empty($lesson_ids)) {
+        return 0;
+    }
+    
+    $total_score = 0;
+    $lesson_count = 0;
+    
+    // Calculate average score for all lessons in this sub-section
+    foreach ($lesson_ids as $lesson_id) {
+        $lesson_score = get_lesson_quiz_avg_score($quiz_attempts, $lesson_id);
+        if ($lesson_score > 0) { // Only count lessons that have quiz attempts
+            $total_score += $lesson_score;
+            $lesson_count++;
+        }
+    }
+    
+    // Return average score or 0 if no lessons have quiz attempts
+    return $lesson_count > 0 ? round($total_score / $lesson_count, 2) : 0;
+}
+
 // Save metabox data
 add_action('save_post', function($post_id) {
     // Check if this is an autosave
@@ -455,10 +560,24 @@ add_action('save_post', function($post_id) {
         $sections = [];
         foreach ($_POST['studypeak_sections'] as $section_data) {
             if (!empty($section_data['title'])) {
-                $sections[] = [
+                $section = [
                     'title' => sanitize_text_field($section_data['title']),
-                    'lessons' => array_map('intval', $section_data['lessons'] ?? [])
+                    'subsections' => []
                 ];
+                
+                // Process sub-sections
+                if (isset($section_data['subsections']) && is_array($section_data['subsections'])) {
+                    foreach ($section_data['subsections'] as $subsection_data) {
+                        if (!empty($subsection_data['title'])) {
+                            $section['subsections'][] = [
+                                'title' => sanitize_text_field($subsection_data['title']),
+                                'lessons' => array_map('intval', $subsection_data['lessons'] ?? [])
+                            ];
+                        }
+                    }
+                }
+                
+                $sections[] = $section;
             }
         }
         update_post_meta($post_id, '_studypeak_pdf_sections', $sections);
@@ -539,25 +658,30 @@ add_action( 'init', function() {
     
     if (!empty($sections) && is_array($sections)) {
         foreach ($sections as $section) {
-            if (isset($section['title']) && isset($section['lessons']) && is_array($section['lessons'])) {
+            if (isset($section['title']) && isset($section['subsections']) && is_array($section['subsections'])) {
                 $section_title = $section['title'];
-                $lessons = $section['lessons'];
+                $subsections = $section['subsections'];
                 
-                // Create progress bars for each lesson in the section
-                $lesson_bars = [];
-                foreach ($lessons as $lesson_id) {
-                    // Get lesson title from LearnDash
-                    $lesson_post = get_post($lesson_id);
-                    $lesson_title = $lesson_post ? $lesson_post->post_title : "Lesson " . $lesson_id;
-                    
-                    $progress = get_lesson_quiz_avg_score( $quiz_attempts, $lesson_id );
-                    $lesson_bars[] = [
-                        'title' => $lesson_title,
-                        'progress' => $progress
-                    ];
+                // Create progress bars for each sub-section in the section
+                $subsection_bars = [];
+                foreach ($subsections as $subsection) {
+                    if (isset($subsection['title']) && isset($subsection['lessons']) && is_array($subsection['lessons'])) {
+                        $subsection_title = $subsection['title'];
+                        $lesson_ids = $subsection['lessons'];
+                        
+                        // Calculate average score for all lessons in this sub-section
+                        $progress = get_subsection_avg_score($quiz_attempts, $lesson_ids);
+                        $subsection_bars[] = [
+                            'title' => $subsection_title,
+                            'progress' => $progress
+                        ];
+                    }
                 }
                 
-                $bars_data[$section_title] = $lesson_bars;
+                // Only add section if it has sub-sections
+                if (!empty($subsection_bars)) {
+                    $bars_data[$section_title] = $subsection_bars;
+                }
             }
         }
     }
