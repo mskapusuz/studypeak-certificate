@@ -282,6 +282,7 @@ function studypeak_pdf_certificate_metabox_callback($post) {
         $lessons = [];
     }
     
+    
     ?>
     <div id="studypeak-pdf-sections">
         <style>
@@ -402,6 +403,7 @@ function studypeak_pdf_certificate_metabox_callback($post) {
             const lessons = <?php echo wp_json_encode($lessons); ?>;
             const subsectionCounters = {};
             
+            
             function addSection() {
                 const container = document.getElementById('sections-container');
                 const sectionDiv = document.createElement('div');
@@ -440,8 +442,9 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                 subsectionDiv.setAttribute('data-subsection', subsectionIndex);
                 
                 let lessonsOptions = '';
-                if (lessons && lessons.length > 0) {
-                    lessons.forEach(function(lesson) {
+                if (lessons && typeof lessons === 'object') {
+                    // Handle both array and object structures
+                    Object.values(lessons).forEach(function(lesson) {
                         if (lesson && lesson.post) {
                             lessonsOptions += '<option value="' + lesson.post.ID + '">' + lesson.post.post_title + '</option>';
                         }
