@@ -450,7 +450,7 @@ function studypeak_pdf_certificate_metabox_callback($post) {
             }
             
             function removeSection(index) {
-                const section = document.querySelector('[data-index="' + index + '"]');
+                const section = document.querySelector('.studypeak-section[data-index="' + index + '"]');
                 if (section) {
                     section.remove();
                     delete subsectionCounters[index];
