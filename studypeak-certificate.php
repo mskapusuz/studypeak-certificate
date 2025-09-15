@@ -479,32 +479,50 @@ function get_lesson_quiz_avg_score($quiz_attemps, $lesson_id) {
         return 0;
     }
     
-    $last_attempt = null;
-    $latest_time = 0;
+    $quiz_scores = []; // Store the latest attempt for each unique quiz
     
-    // Find the most recent attempt for the specific lesson
+    // Find all quizzes for this lesson and get the most recent attempt for each
     foreach ($quiz_attemps as $attempt) {
         // Check if this attempt belongs to the specified lesson
         if (isset($attempt['lesson']) && $attempt['lesson'] == $lesson_id) {
-            // Check if this is the most recent attempt based on completion time
-            if (isset($attempt['completed']) && $attempt['completed'] > $latest_time) {
-                $latest_time = $attempt['completed'];
-                $last_attempt = $attempt;
+            $quiz_id = $attempt['quiz'] ?? null;
+            if (!$quiz_id) continue;
+            
+            // If we haven't seen this quiz before, or this attempt is more recent
+            if (!isset($quiz_scores[$quiz_id]) || 
+                (isset($attempt['completed']) && $attempt['completed'] > $quiz_scores[$quiz_id]['completed'])) {
+                
+                // Calculate percentage for this attempt
+                $percentage = 0;
+                if (isset($attempt['percentage']) && is_numeric($attempt['percentage'])) {
+                    $percentage = $attempt['percentage'];
+                } elseif (isset($attempt['points']) && isset($attempt['total_points']) && 
+                         is_numeric($attempt['points']) && is_numeric($attempt['total_points']) && 
+                         $attempt['total_points'] > 0) {
+                    $percentage = ($attempt['points'] / $attempt['total_points']) * 100;
+                }
+                
+                $quiz_scores[$quiz_id] = [
+                    'percentage' => $percentage,
+                    'completed' => $attempt['completed'] ?? 0
+                ];
             }
         }
     }
     
-    // Return percentage from the last attempt or 0 if no attempts found
-    if ($last_attempt) {
-        // Use percentage if available, otherwise calculate from points
-        if (isset($last_attempt['percentage']) && is_numeric($last_attempt['percentage'])) {
-            return $last_attempt['percentage'];
-        } elseif (isset($last_attempt['points']) && isset($last_attempt['total_points']) && 
-                 is_numeric($last_attempt['points']) && is_numeric($last_attempt['total_points']) && 
-                 $last_attempt['total_points'] > 0) {
-            // Calculate percentage from points
-            return round(($last_attempt['points'] / $last_attempt['total_points']) * 100, 2);
+    // Calculate average across all different quizzes in this lesson
+    if (!empty($quiz_scores)) {
+        $total_percentage = 0;
+        $quiz_count = 0;
+        
+        foreach ($quiz_scores as $quiz_data) {
+            if ($quiz_data['percentage'] > 0) { // Only count quizzes with actual scores
+                $total_percentage += $quiz_data['percentage'];
+                $quiz_count++;
+            }
         }
+        
+        return $quiz_count > 0 ? round($total_percentage / $quiz_count, 2) : 0;
     }
     
     return 0;
