@@ -1,10 +1,8 @@
 <?php
 /**
  * Plugin Name:     Studypeak Certificate
- * Plugin URI:      PLUGIN SITE HERE
- * Description:     PLUGIN DESCRIPTION HERE
- * Author:          YOUR NAME HERE
- * Author URI:      YOUR SITE HERE
+ * Description:     Adds certificate support
+ * Author:          Mustafa Kapusuz
  * Text Domain:     studypeak-certificate
  * Domain Path:     /languages
  * Version:         0.1.0
@@ -235,6 +233,26 @@ function ruler($pdf) {
     $pdf->RoundedRect($x_pos, $bar_y_pos, $bar_width, $bar_height, 0.5, '1111', 'F');
  }
 
+// Enqueue admin scripts and styles
+add_action('admin_enqueue_scripts', function($hook) {
+    global $post;
+    
+    // Only load on course edit pages
+    if ($hook == 'post.php' || $hook == 'post-new.php') {
+        if (isset($post) && $post->post_type == 'sfwd-courses') {
+            // Use LearnDash's Select2 if available, otherwise load our own
+            if (defined('LEARNDASH_LMS_PLUGIN_URL')) {
+                wp_enqueue_style('learndash-select2', LEARNDASH_LMS_PLUGIN_URL . 'assets/vendor-libs/select2-jquery/css/select2.min.css');
+                wp_enqueue_script('learndash-select2', LEARNDASH_LMS_PLUGIN_URL . 'assets/vendor-libs/select2-jquery/js/select2.full.min.js', array('jquery'));
+            } else {
+                // Fallback to CDN if LearnDash not available
+                wp_enqueue_script('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js', array('jquery'), '4.1.0', true);
+                wp_enqueue_style('select2', 'https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css', array(), '4.1.0');
+            }
+        }
+    }
+});
+
 // Add metabox for LearnDash courses
 add_action('add_meta_boxes', function() {
     add_meta_box(
@@ -447,6 +465,13 @@ function studypeak_pdf_certificate_metabox_callback($post) {
                 
                 container.appendChild(subsectionDiv);
                 subsectionCounters[sectionIndex]++;
+                
+                // Initialize Select2 for the new select element
+                jQuery('#subsection_lessons_' + sectionIndex + '_' + subsectionIndex).select2({
+                    placeholder: "Search and select lessons...",
+                    allowClear: true,
+                    width: '100%'
+                });
             }
             
             function removeSection(index) {
@@ -460,6 +485,11 @@ function studypeak_pdf_certificate_metabox_callback($post) {
             function removeSubsection(sectionIndex, subsectionIndex) {
                 const subsection = document.querySelector('[data-section="' + sectionIndex + '"][data-subsection="' + subsectionIndex + '"]');
                 if (subsection) {
+                    // Destroy Select2 instance before removing the element
+                    const selectElement = subsection.querySelector('select');
+                    if (selectElement && jQuery(selectElement).hasClass('select2-hidden-accessible')) {
+                        jQuery(selectElement).select2('destroy');
+                    }
                     subsection.remove();
                 }
             }
@@ -468,6 +498,18 @@ function studypeak_pdf_certificate_metabox_callback($post) {
             <?php foreach ($sections as $index => $section): ?>
                 subsectionCounters[<?php echo $index; ?>] = <?php echo isset($section['subsections']) ? count($section['subsections']) : 0; ?>;
             <?php endforeach; ?>
+            
+            // Initialize Select2 for existing lesson selects when document is ready
+            jQuery(document).ready(function($) {
+                // Initialize Select2 for all existing lesson select elements
+                $('select[name*="[lessons]"]').each(function() {
+                    $(this).select2({
+                        placeholder: "Search and select lessons...",
+                        allowClear: true,
+                        width: '100%'
+                    });
+                });
+            });
         </script>
     </div>
     <?php
