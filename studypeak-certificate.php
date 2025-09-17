@@ -837,7 +837,443 @@ add_action('save_post', function($post_id) {
     }
 });
 
+// Function to get certificate data
+function get_certificate_data($user_id, $course_id) {
+    $quiz_attempts = get_user_meta($user_id, '_sfwd-quizzes', true);
+    if (empty($quiz_attempts) || !is_array($quiz_attempts)) {
+        return false;
+    }
+
+    $sections = get_post_meta($course_id, '_studypeak_pdf_sections', true);
+    $selected_essay_question = get_post_meta($course_id, '_studypeak_selected_essay_question', true);
+    
+    // Transform $sections into $bars_data format
+    $bars_data = [];
+    
+    if (!empty($sections) && is_array($sections)) {
+        foreach ($sections as $section) {
+            if (isset($section['title']) && isset($section['subsections']) && is_array($section['subsections'])) {
+                $section_title = $section['title'];
+                $subsections = $section['subsections'];
+                
+                // Create progress bars for each sub-section in the section
+                $subsection_bars = [];
+                foreach ($subsections as $subsection) {
+                    if (isset($subsection['title']) && isset($subsection['lessons']) && is_array($subsection['lessons'])) {
+                        $subsection_title = $subsection['title'];
+                        $lesson_ids = $subsection['lessons'];
+                        
+                        // Calculate average score for all lessons in this sub-section
+                        $progress = get_subsection_avg_score($quiz_attempts, $lesson_ids);
+                        $subsection_bars[] = [
+                            'title' => $subsection_title,
+                            'progress' => $progress
+                        ];
+                    }
+                }
+                
+                // Only add section if it has sub-sections
+                if (!empty($subsection_bars)) {
+                    $bars_data[$section_title] = $subsection_bars;
+                }
+            }
+        }
+    }
+    
+    // Get essay question data if selected
+    $essay_data = null;
+    if (!empty($selected_essay_question)) {
+        $question_post = get_post($selected_essay_question);
+        if ($question_post) {
+            $quiz_id = wp_get_post_parent_id($selected_essay_question);
+            $quiz_title = $quiz_id ? get_the_title($quiz_id) : 'Unknown Quiz';
+            
+            $essay_data = [
+                'question_id' => $selected_essay_question,
+                'question_title' => $question_post->post_title,
+                'question_content' => $question_post->post_content,
+                'quiz_title' => $quiz_title,
+                'quiz_id' => $quiz_id
+            ];
+        }
+    }
+    
+    return [
+        'user_id' => $user_id,
+        'course_id' => $course_id,
+        'course_title' => get_the_title($course_id),
+        'user_name' => get_userdata($user_id)->display_name,
+        'bars_data' => $bars_data,
+        'essay_data' => $essay_data,
+        'verification_code' => base64_encode($user_id . ':' . $course_id)
+    ];
+}
+
+// Function to render progress bar HTML
+function render_progress_bar_html($progress, $title, $is_title = false) {
+    $bar_class = $is_title ? 'progress-bar-title' : 'progress-bar-regular';
+    $title_class = $is_title ? 'bar-title-main' : 'bar-title-sub';
+    
+    return sprintf(
+        '<div class="progress-bar-container %s">
+            <div class="bar-info">
+                <span class="%s">%s</span>
+                <span class="bar-percentage">%d%%</span>
+            </div>
+            <div class="progress-bar-background">
+                <div class="progress-bar-fill" style="width: %d%%;"></div>
+            </div>
+        </div>',
+        $bar_class,
+        $title_class,
+        esc_html($title),
+        $progress,
+        $progress
+    );
+}
+
+// Function to render certificate HTML
+function render_certificate_html($certificate_data) {
+    ob_start();
+    ?>
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Certificate - <?php echo esc_html($certificate_data['course_title']); ?></title>
+        <style>
+            * {
+                margin: 0;
+                padding: 0;
+                box-sizing: border-box;
+            }
+            
+            body {
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                background-color: #f5f5f5;
+            }
+            
+            .certificate-container {
+                max-width: 800px;
+                margin: 0 auto;
+                background: white;
+                box-shadow: 0 0 20px rgba(0,0,0,0.1);
+                min-height: 100vh;
+            }
+            
+            .certificate-header {
+                background: linear-gradient(135deg, #1A3A27 0%, #18C867 100%);
+                color: white;
+                padding: 2rem 1rem;
+                text-align: center;
+                position: relative;
+            }
+            
+            .logo {
+                margin-bottom: 1rem;
+            }
+            
+            .logo svg {
+                height: 40px;
+                width: auto;
+            }
+            
+            .certificate-title {
+                font-size: 1.8rem;
+                font-weight: bold;
+                margin-bottom: 0.5rem;
+            }
+            
+            .certificate-subtitle {
+                font-size: 1rem;
+                opacity: 0.9;
+            }
+            
+            .qr-code {
+                position: absolute;
+                top: 1rem;
+                right: 1rem;
+                background: white;
+                padding: 0.5rem;
+                border-radius: 8px;
+            }
+            
+            .certificate-content {
+                padding: 2rem 1rem;
+            }
+            
+            .student-info {
+                text-align: center;
+                margin-bottom: 2rem;
+                padding: 1rem;
+                background: #f8f9fa;
+                border-radius: 8px;
+            }
+            
+            .student-name {
+                font-size: 1.5rem;
+                font-weight: bold;
+                color: #1A3A27;
+                margin-bottom: 0.5rem;
+            }
+            
+            .course-name {
+                font-size: 1.1rem;
+                color: #666;
+            }
+            
+            .performance-section {
+                margin: 2rem 0;
+            }
+            
+            .section-title {
+                font-size: 1.3rem;
+                font-weight: bold;
+                color: #1A3A27;
+                margin-bottom: 1rem;
+                border-bottom: 2px solid #18C867;
+                padding-bottom: 0.5rem;
+            }
+            
+            .progress-bar-container {
+                margin-bottom: 1rem;
+                padding: 0.75rem;
+                border-radius: 8px;
+                background: #f8f9fa;
+            }
+            
+            .progress-bar-title {
+                background: linear-gradient(135deg, #1A3A27 0%, #2a5a37 100%);
+                color: white;
+            }
+            
+            .bar-info {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 0.5rem;
+            }
+            
+            .bar-title-main {
+                font-weight: bold;
+                font-size: 1.1rem;
+            }
+            
+            .bar-title-sub {
+                font-weight: normal;
+                font-size: 1rem;
+            }
+            
+            .bar-percentage {
+                font-weight: bold;
+                color: #18C867;
+            }
+            
+            .progress-bar-title .bar-percentage {
+                color: #fff;
+            }
+            
+            .progress-bar-background {
+                height: 12px;
+                background: #e0e0e0;
+                border-radius: 6px;
+                overflow: hidden;
+            }
+            
+            .progress-bar-fill {
+                height: 100%;
+                background: linear-gradient(90deg, #18C867 0%, #20d473 100%);
+                border-radius: 6px;
+                transition: width 0.3s ease;
+            }
+            
+            .progress-bar-title .progress-bar-background {
+                background: rgba(255,255,255,0.3);
+            }
+            
+            .progress-bar-title .progress-bar-fill {
+                background: rgba(255,255,255,0.9);
+            }
+            
+            .essay-section {
+                margin: 2rem 0;
+                padding: 1.5rem;
+                background: #fff;
+                border: 2px solid #18C867;
+                border-radius: 12px;
+            }
+            
+            .essay-question {
+                margin-bottom: 1rem;
+            }
+            
+            .essay-question h4 {
+                color: #1A3A27;
+                margin-bottom: 0.5rem;
+            }
+            
+            .essay-quiz-info {
+                font-size: 0.9rem;
+                color: #666;
+                margin-bottom: 1rem;
+            }
+            
+            .footer {
+                text-align: center;
+                padding: 2rem 1rem;
+                background: #f8f9fa;
+                border-top: 1px solid #e0e0e0;
+                color: #666;
+                font-size: 0.9rem;
+            }
+            
+            @media (max-width: 768px) {
+                .certificate-container {
+                    margin: 0;
+                    box-shadow: none;
+                }
+                
+                .certificate-header {
+                    padding: 1.5rem 1rem;
+                }
+                
+                .certificate-title {
+                    font-size: 1.5rem;
+                }
+                
+                .qr-code {
+                    position: relative;
+                    top: auto;
+                    right: auto;
+                    margin: 1rem auto 0;
+                    display: inline-block;
+                }
+                
+                .certificate-content {
+                    padding: 1rem;
+                }
+                
+                .student-name {
+                    font-size: 1.3rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="certificate-container">
+            <div class="certificate-header">
+                <div class="logo">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="143" height="27" viewBox="0 0 143 27" fill="none">
+                        <g id="Group">
+                            <g id="Group_2">
+                                <path id="Vector" d="M90.2197 5.99241H93.1611L93.3697 7.94511C94.1514 6.4605 95.843 5.60156 97.7957 5.60156C101.415 5.60156 103.81 8.23092 103.81 12.2661C103.81 16.3013 101.622 19.1917 97.7957 19.1917C95.8693 19.1917 94.2024 18.4363 93.396 17.1355V24.8165H90.2197V5.99241ZM97.0418 16.3275C99.2803 16.3275 100.609 14.7131 100.609 12.4221C100.609 10.1311 99.2819 8.49045 97.0418 8.49045C94.8018 8.49045 93.4222 10.1048 93.4222 12.4221C93.4222 14.7394 94.8543 16.3275 97.0418 16.3275Z" fill="white"></path>
+                                <path id="Vector_2" d="M104.541 12.4221C104.541 8.38694 107.17 5.60156 110.946 5.60156C114.721 5.60156 117.245 8.17839 117.245 12.1888V13.1528L107.561 13.1791C107.796 15.4439 108.993 16.5902 111.102 16.5902C112.846 16.5902 113.992 15.9135 114.357 14.69H117.298C116.751 17.5016 114.408 19.1948 111.049 19.1948C107.222 19.1948 104.541 16.4094 104.541 12.4252V12.4221ZM107.638 11.1476H114.095C114.095 9.3772 112.872 8.20619 110.972 8.20619C109.072 8.20619 107.952 9.22116 107.64 11.1476H107.638Z" fill="white"></path>
+                                <path id="Vector_3" d="M118.053 15.1812C118.053 12.8114 119.771 11.3284 122.818 11.0935L126.671 10.8077V10.5219C126.671 8.77779 125.629 8.07488 124.015 8.07488C122.141 8.07488 121.1 8.85658 121.1 10.2099H118.392C118.392 7.42449 120.683 5.60156 124.171 5.60156C127.659 5.60156 129.768 7.47547 129.768 11.0426V18.8534H126.983L126.748 16.9532C126.201 18.2802 124.457 19.1917 122.452 19.1917C119.717 19.1917 118.052 17.6036 118.052 15.1828L118.053 15.1812ZM126.697 13.6441V12.9675L124.015 13.176C122.036 13.3583 121.282 14.0087 121.282 15.0499C121.282 16.2209 122.064 16.7941 123.494 16.7941C125.447 16.7941 126.697 15.6231 126.697 13.6441Z" fill="white"></path>
+                                <path id="Vector_4" d="M130.867 18.8535V0H134.017V11.381L139.016 5.99096H143L138.106 11.0936L142.897 18.8519H139.252L135.894 13.4372L134.02 15.3899V18.8519H130.87L130.867 18.8535Z" fill="white"></path>
+                            </g>
+                            <path id="Vector_5" d="M33.8246 14.9464C33.8508 16.0664 34.6835 16.7694 36.1418 16.7694C37.6002 16.7694 38.4329 16.1699 38.4329 15.2338C38.4329 14.5834 38.0946 14.1137 36.9483 13.8542L34.631 13.3073C32.3137 12.7867 31.1937 11.6929 31.1937 9.63674C31.1937 7.11089 33.3287 5.60156 36.2963 5.60156C39.264 5.60156 41.1395 7.26846 41.1642 9.7665H38.144C38.1177 8.67274 37.3886 7.96983 36.165 7.96983C34.9415 7.96983 34.1861 8.54297 34.1861 9.50542C34.1861 10.2346 34.7592 10.7027 35.853 10.9638L38.1703 11.5107C40.3315 12.005 41.4253 12.9953 41.4253 14.9727C41.4253 17.5758 39.2115 19.1901 36.0353 19.1901C32.859 19.1901 30.8013 17.4723 30.8013 14.9464H33.8215H33.8246Z" fill="white"></path>
+                            <path id="Vector_6" d="M44.0036 18.8539V8.64854H41.5303V5.99293H44.0036V2.5H47.1798V5.99293H49.6794V8.64854H47.1798V18.8539H44.0036Z" fill="white"></path>
+                            <path id="Vector_7" d="M61.9955 5.99373V18.8547H59.054L58.8192 17.1368C58.0375 18.3603 56.3722 19.193 54.6527 19.193C51.6851 19.193 49.9409 17.1878 49.9409 14.0378V5.99219H53.1172V12.9178C53.1172 15.3649 54.0811 16.3551 55.8516 16.3551C57.8568 16.3551 58.8192 15.1841 58.8192 12.7355V5.99219H61.9955V5.99373Z" fill="white"></path>
+                            <path id="Vector_8" d="M62.6997 12.4732C62.6997 8.46429 65.0433 5.60012 68.9224 5.60012C70.7191 5.60012 72.3072 6.35555 73.1136 7.6316V0H76.2636V18.8535H73.3484L73.1399 16.8482C72.3597 18.3329 70.6928 19.1918 68.7401 19.1918C65.017 19.1918 62.6997 16.4574 62.6997 12.4747V12.4732ZM73.0873 12.3697C73.0873 10.0524 71.6553 8.43803 69.443 8.43803C67.2308 8.43803 65.8759 10.0787 65.8759 12.3697C65.8759 14.6607 67.2292 16.2751 69.443 16.2751C71.6568 16.2751 73.0873 14.687 73.0873 12.3697Z" fill="white"></path>
+                            <path id="Vector_9" d="M76.8892 22.1607H78.7894C80.0392 22.1607 80.8193 21.8749 81.3662 20.364L81.7308 19.4L76.5493 5.99219H79.9078L83.2138 15.3649L86.7021 5.99219H89.9819L83.6804 21.7173C82.7179 24.1119 81.3631 25.1021 79.2544 25.1021C78.3692 25.1021 77.5875 24.9986 76.8846 24.8163V22.1607H76.8892Z" fill="white"></path>
+                            <g id="Group_3">
+                                <path id="Vector_10" d="M6.19643 16.64L2.51194 20.3245L0 17.8126L3.6814 14.1312L2.9445 13.3958C2.07629 12.5276 1.59893 11.3751 1.59893 10.147C1.59893 8.91882 2.07629 7.76635 2.9445 6.89814C4.735 5.10764 7.65015 5.1061 9.44064 6.89814C10.3089 7.76635 10.7862 8.91882 10.7862 10.147C10.7862 11.3751 10.3089 12.5276 9.44064 13.3958L8.70838 14.1281L12.2739 17.6844L9.76506 20.2009L6.19643 16.6416V16.64ZM5.45645 9.41163C5.26025 9.60782 5.15211 9.86891 5.15211 10.147C5.15211 10.4251 5.26025 10.6861 5.4549 10.8808L6.19334 11.6177L6.9287 10.8823C7.1249 10.6861 7.23304 10.4251 7.23304 10.147C7.23304 9.86891 7.1249 9.60782 6.9287 9.41163C6.7325 9.21543 6.47142 9.10729 6.19334 9.10729C5.91527 9.10729 5.65419 9.21543 5.45799 9.41163H5.45645Z" fill="#18C867"></path>
+                                <path id="Vector_11" d="M6.58288 25.0053C5.71467 24.1371 5.2373 22.9846 5.2373 21.7565C5.2373 20.5283 5.71467 19.3758 6.58288 18.5076L14.9869 10.1036L14.2516 9.3667C13.3834 8.49849 12.906 7.34601 12.906 6.11785C12.906 4.88969 13.3834 3.73723 14.2516 2.86901C15.1198 2.0008 16.2722 1.52344 17.5004 1.52344C18.727 1.52344 19.881 2.0008 20.7492 2.86901C21.6175 3.73723 22.0948 4.88969 22.0948 6.11785C22.0948 7.34601 21.6175 8.49849 20.7492 9.3667L20.0124 10.1036L27.7397 17.8387L25.2263 20.3491L17.4989 12.6155L12.3313 17.7831L13.0574 18.4845L13.079 18.5061C13.9472 19.3743 14.4246 20.5268 14.4246 21.7549C14.4246 22.9831 13.9472 24.1356 13.079 25.0038C12.183 25.8998 11.0074 26.3478 9.83018 26.3478C8.65454 26.3478 7.47735 25.8998 6.58134 25.0038L6.58288 25.0053ZM9.81936 20.2981L9.09637 21.0211C8.90017 21.2173 8.79203 21.4784 8.79203 21.7565C8.79203 22.0346 8.90017 22.2956 9.09637 22.4918C9.50267 22.8981 10.1623 22.8981 10.5686 22.4918C10.7648 22.2956 10.873 22.0346 10.873 21.7565C10.873 21.4784 10.7679 21.225 10.5763 21.0288L9.81936 20.2981ZM16.7651 5.38404C16.5689 5.58024 16.4607 5.84132 16.4607 6.1194C16.4607 6.39747 16.5689 6.65856 16.7666 6.8563L17.502 7.59165L18.2389 6.85475C18.435 6.65856 18.5432 6.39747 18.5432 6.1194C18.5432 5.84132 18.435 5.58024 18.2389 5.38404C18.0427 5.18784 17.7816 5.07971 17.5035 5.07971C17.2254 5.07971 16.9643 5.18784 16.7681 5.38404H16.7651Z" fill="#18C867"></path>
+                            </g>
+                        </g>
+                    </svg>
+                </div>
+                <h1 class="certificate-title">Student Performance Certificate</h1>
+                <p class="certificate-subtitle">Academic Achievement Report</p>
+                
+                <div class="qr-code">
+                    <div style="width: 80px; height: 80px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center;">
+                        QR Code<br><?php echo esc_html(substr($certificate_data['verification_code'], 0, 8)); ?>...
+                    </div>
+                </div>
+            </div>
+            
+            <div class="certificate-content">
+                <div class="student-info">
+                    <div class="student-name"><?php echo esc_html($certificate_data['user_name']); ?></div>
+                    <div class="course-name"><?php echo esc_html($certificate_data['course_title']); ?></div>
+                </div>
+                
+                <?php if (!empty($certificate_data['bars_data'])): ?>
+                    <div class="performance-section">
+                        <h2 class="section-title">Performance Overview</h2>
+                        
+                        <?php foreach ($certificate_data['bars_data'] as $category_title => $sub_quizzes): ?>
+                            <?php
+                            $category_progress = round(array_sum(array_column($sub_quizzes, 'progress')) / count($sub_quizzes));
+                            echo render_progress_bar_html($category_progress, $category_title, true);
+                            ?>
+                            
+                            <?php foreach ($sub_quizzes as $sub_quiz): ?>
+                                <?php echo render_progress_bar_html($sub_quiz['progress'], $sub_quiz['title'], false); ?>
+                            <?php endforeach; ?>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+                
+                <?php if (!empty($certificate_data['essay_data'])): ?>
+                    <div class="essay-section">
+                        <h2 class="section-title">Featured Essay Question</h2>
+                        <div class="essay-quiz-info">
+                            <strong>From Quiz:</strong> <?php echo esc_html($certificate_data['essay_data']['quiz_title']); ?>
+                        </div>
+                        <div class="essay-question">
+                            <h4><?php echo esc_html($certificate_data['essay_data']['question_title']); ?></h4>
+                            <?php if (!empty($certificate_data['essay_data']['question_content'])): ?>
+                                <div class="question-content">
+                                    <?php echo wp_kses_post($certificate_data['essay_data']['question_content']); ?>
+                                </div>
+                            <?php endif; ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <div class="footer">
+               
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+    return ob_get_clean();
+}
+
 add_action( 'init', function() {
+    // Handle certificate display (HTML version)
+    if (isset($_GET['certificate']) && isset($_GET['code'])) {
+        $code = sanitize_text_field($_GET['code']);
+        $decoded = base64_decode($code);
+        
+        if ($decoded && strpos($decoded, ':') !== false) {
+            list($user_id, $course_id) = explode(':', $decoded, 2);
+            $user_id = intval($user_id);
+            $course_id = intval($course_id);
+            
+            if ($user_id > 0 && $course_id > 0) {
+                $certificate_data = get_certificate_data($user_id, $course_id);
+                
+                if ($certificate_data) {
+                    echo render_certificate_html($certificate_data);
+                    exit;
+                } else {
+                    wp_die('Certificate data not found or user has no quiz attempts.', 'Certificate Error', ['response' => 404]);
+                }
+            }
+        }
+        
+        wp_die('Invalid certificate code.', 'Certificate Error', ['response' => 400]);
+    }
+    
+    // Handle PDF certificate generation (existing functionality)
     if(!isset($_GET['certificate']) || !isset($_GET['course-id'])) {
         return;
     }
@@ -851,12 +1287,10 @@ add_action( 'init', function() {
         return false;
     }
 
-    $quiz_attempts = get_user_meta( $current_user_id, '_sfwd-quizzes', true );
-    if ( empty( $quiz_attempts ) || ! is_array( $quiz_attempts ) ) {
+    $certificate_data = get_certificate_data($current_user_id, $course_id);
+    if (!$certificate_data) {
         return false;
     }
-
-    $sections = get_post_meta($course_id, '_studypeak_pdf_sections', true);
 
     // Include the Composer autoloader
     require_once plugin_dir_path(__FILE__) . 'vendor/autoload.php';
@@ -902,8 +1336,7 @@ add_action( 'init', function() {
     $qr_y = $padding_y; // Same Y position as logo
     
     // Create the certificate verification URL
-    $verification_data = base64_encode($current_user_id . ':' . $course_id);
-    $verification_url = site_url('?certificate&code=' . $verification_data);
+    $verification_url = site_url('?certificate&code=' . $certificate_data['verification_code']);
     
     // Generate QR code using TCPDF's built-in method
     $pdf->write2DBarcode($verification_url, 'QRCODE,L', $qr_x, $qr_y, $qr_size, $qr_size, array(
@@ -924,38 +1357,8 @@ add_action( 'init', function() {
     $pdf->SetXY($padding_x, $effective_content_start_y);
     $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'L');
 
-    // Transform $sections into $bars_data format
-    $bars_data = [];
-    
-    if (!empty($sections) && is_array($sections)) {
-        foreach ($sections as $section) {
-            if (isset($section['title']) && isset($section['subsections']) && is_array($section['subsections'])) {
-                $section_title = $section['title'];
-                $subsections = $section['subsections'];
-                
-                // Create progress bars for each sub-section in the section
-                $subsection_bars = [];
-                foreach ($subsections as $subsection) {
-                    if (isset($subsection['title']) && isset($subsection['lessons']) && is_array($subsection['lessons'])) {
-                        $subsection_title = $subsection['title'];
-                        $lesson_ids = $subsection['lessons'];
-                        
-                        // Calculate average score for all lessons in this sub-section
-                        $progress = get_subsection_avg_score($quiz_attempts, $lesson_ids);
-                        $subsection_bars[] = [
-                            'title' => $subsection_title,
-                            'progress' => $progress
-                        ];
-                    }
-                }
-                
-                // Only add section if it has sub-sections
-                if (!empty($subsection_bars)) {
-                    $bars_data[$section_title] = $subsection_bars;
-                }
-            }
-        }
-    }
+    // Use the shared certificate data
+    $bars_data = $certificate_data['bars_data'];
     
     $margin_top = 7; // Margin top for each bar
     $current_y = $effective_content_start_y + 80; // Starting Y position (below logo and title)
