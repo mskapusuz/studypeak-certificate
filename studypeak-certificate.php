@@ -12,6 +12,84 @@
 
  defined( 'ABSPATH' ) || exit;
 
+// Certificate encryption/decryption functions
+function studypeak_encrypt_certificate_code($data) {
+    if (!defined('STUDYPEAK_CERTIFICATE_KEY')) {
+        return base64_encode($data); // Fallback to base64 if key not defined
+    }
+    
+    $key = STUDYPEAK_CERTIFICATE_KEY;
+    $method = 'AES-256-CBC';
+    $iv = openssl_random_pseudo_bytes(16);
+    
+    // Encrypt the data
+    $encrypted = openssl_encrypt($data, $method, $key, 0, $iv);
+    
+    // Combine IV and encrypted data
+    $encrypted_data = base64_encode($iv . $encrypted);
+    
+    // Make it URL-friendly by replacing URL-unsafe characters
+    $url_safe = str_replace(['+', '/', '='], ['-', '_', '.'], $encrypted_data);
+    
+    return $url_safe;
+}
+
+function studypeak_decrypt_certificate_code($encrypted_code) {
+    if (!defined('STUDYPEAK_CERTIFICATE_KEY')) {
+        return base64_decode($encrypted_code); // Fallback to base64 if key not defined
+    }
+    
+    $key = STUDYPEAK_CERTIFICATE_KEY;
+    $method = 'AES-256-CBC';
+    
+    // Convert back from URL-safe format
+    $encrypted_data = str_replace(['-', '_', '.'], ['+', '/', '='], $encrypted_code);
+    
+    // Decode from base64
+    $data = base64_decode($encrypted_data);
+    
+    if ($data === false || strlen($data) < 16) {
+        return false; // Invalid data
+    }
+    
+    // Extract IV and encrypted content
+    $iv = substr($data, 0, 16);
+    $encrypted = substr($data, 16);
+    
+    // Decrypt
+    $decrypted = openssl_decrypt($encrypted, $method, $key, 0, $iv);
+    
+    return $decrypted;
+}
+
+// Test function for encryption/decryption (can be removed after testing)
+function studypeak_test_certificate_encryption() {
+    if (!current_user_can('manage_options')) {
+        return;
+    }
+    
+    $test_data = '172:107482'; // Example user_id:course_id
+    
+    // Encrypt
+    $encrypted = studypeak_encrypt_certificate_code($test_data);
+    
+    // Decrypt
+    $decrypted = studypeak_decrypt_certificate_code($encrypted);
+    
+    // Debug output (only for administrators)
+    if (isset($_GET['test_certificate_encryption'])) {
+        echo "<h3>Certificate Encryption Test</h3>";
+        echo "<p><strong>Original:</strong> " . esc_html($test_data) . "</p>";
+        echo "<p><strong>Encrypted:</strong> " . esc_html($encrypted) . "</p>";
+        echo "<p><strong>Decrypted:</strong> " . esc_html($decrypted) . "</p>";
+        echo "<p><strong>URL-Safe:</strong> " . (strpos($encrypted, '+') === false && strpos($encrypted, '/') === false ? 'Yes' : 'No') . "</p>";
+        echo "<p><strong>Test Result:</strong> " . ($test_data === $decrypted ? 'PASS' : 'FAIL') . "</p>";
+        echo "<p><strong>Sample URL:</strong> " . site_url('?certificate&code=' . $encrypted) . "</p>";
+        exit;
+    }
+}
+add_action('init', 'studypeak_test_certificate_encryption');
+
  function draw_normal_distribution($pdf, $start_x, $start_y, $width = 80, $height = 25) {
     // Draw the normal distribution graph
     $graph_start_x = $start_x;
@@ -905,7 +983,7 @@ function get_certificate_data($user_id, $course_id) {
         'user_name' => get_userdata($user_id)->display_name,
         'bars_data' => $bars_data,
         'essay_data' => $essay_data,
-        'verification_code' => base64_encode($user_id . ':' . $course_id)
+        'verification_code' => studypeak_encrypt_certificate_code($user_id . ':' . $course_id)
     ];
 }
 
@@ -1251,7 +1329,7 @@ add_action( 'init', function() {
     // Handle certificate display (HTML version)
     if (isset($_GET['certificate']) && isset($_GET['code'])) {
         $code = sanitize_text_field($_GET['code']);
-        $decoded = base64_decode($code);
+        $decoded = studypeak_decrypt_certificate_code($code);
         
         if ($decoded && strpos($decoded, ':') !== false) {
             list($user_id, $course_id) = explode(':', $decoded, 2);
