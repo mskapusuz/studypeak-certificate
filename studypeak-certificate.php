@@ -5,7 +5,7 @@
  * Author:          Mustafa Kapusuz
  * Text Domain:     studypeak-certificate
  * Domain Path:     /languages
- * Version:         1.0.0-beta.3
+ * Version:         1.0.0-beta.4
  *
  * @package         Studypeak_Certificate
  */
