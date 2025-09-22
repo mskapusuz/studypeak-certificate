@@ -1521,7 +1521,7 @@ add_action( 'init', function() {
     // Create new PDF document
     $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
-    $course_name = get_the_title($course_id);
+    $course_name = str_replace('– Prüfungssimulation', '', get_the_title($course_id));
 
     // Set document information
     $pdf->SetCreator(PDF_CREATOR);
