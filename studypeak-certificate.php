@@ -5,7 +5,7 @@
  * Author:          Mustafa Kapusuz
  * Text Domain:     studypeak-certificate
  * Domain Path:     /languages
- * Version:         1.0.0-beta.2
+ * Version:         1.0.0-beta.3
  *
  * @package         Studypeak_Certificate
  */
@@ -1265,7 +1265,6 @@ function render_certificate_html($certificate_data) {
                     </svg>
                 </div>
                 <h1 class="certificate-title">Student Performance Certificate</h1>
-                <p class="certificate-subtitle">Academic Achievement Report</p>
                 
                 <div class="qr-code">
                     <div style="width: 80px; height: 80px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center;">
@@ -1376,11 +1375,13 @@ add_action( 'init', function() {
     // Create new PDF document
     $pdf = new TCPDF(PDF_PAGE_ORIENTATION, PDF_UNIT, PDF_PAGE_FORMAT, true, 'UTF-8', false);
 
+    $course_name = get_the_title($course_id);
+
     // Set document information
     $pdf->SetCreator(PDF_CREATOR);
-    $pdf->SetAuthor('StudyPeak');
+    $pdf->SetAuthor('Multicheck');
     $pdf->SetTitle('Certificate Bar Graph');
-    $pdf->SetSubject('Performance Chart');
+    $pdf->SetSubject($course_name . ' Zertifikat');
 
     // Remove default header/footer
     $pdf->setPrintHeader(false);
@@ -1433,7 +1434,7 @@ add_action( 'init', function() {
     // Set font and position title at left top (below logo)
     $pdf->SetFont('helvetica', 'B', 16);
     $pdf->SetXY($padding_x, $effective_content_start_y);
-    $pdf->Cell(0, 10, 'Student Performance Chart', 0, 1, 'L');
+    $pdf->Cell(0, 10, $course_name . ' Zertifikat', 0, 1, 'L');
 
     // Use the shared certificate data
     $bars_data = $certificate_data['bars_data'];

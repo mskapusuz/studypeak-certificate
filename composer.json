@@ -1,11 +1,5 @@
 {
-  "require": {
-    "tecnickcom/tcpdf": "^6.6"
-  },
-  "require-dev": {
-    "wp-cli/i18n-command": "^2"
-  },
-  "scripts": {
-    "makepot": "wp i18n make-pot ."
-  }
+    "require": {
+        "tecnickcom/tcpdf": "^6.6"
+    }
 }
