@@ -966,10 +966,64 @@ function get_certificate_data($user_id, $course_id) {
             $quiz_id = wp_get_post_parent_id($selected_essay_question);
             $quiz_title = $quiz_id ? get_the_title($quiz_id) : 'Unknown Quiz';
             
+            // Get the student's essay submission for this question
+            $student_essay = '';
+            $question_points = 0;
+            $essay_status = '';
+            $essay_score = 0;
+            
+            // Get both ProQuiz question ID and WordPress question post ID
+            $pro_question_id = get_post_meta($selected_essay_question, 'question_pro_id', true);
+            $question_post_id = $selected_essay_question; // This is the WordPress question post ID
+            
+            if (!empty($pro_question_id)) {
+                // Find essay submissions for this user and question
+                $essay_posts = get_posts([
+                    'post_type' => 'sfwd-essays',
+                    'post_status' => 'any',
+                    'author' => intval($user_id),
+                    'meta_query' => [
+                        [
+                            'key' => 'question_post_id',
+                            'value' => intval($question_post_id),
+                            'compare' => '='
+                        ]
+                    ],
+                    'posts_per_page' => 1,
+                    'orderby' => 'date',
+                    'order' => 'DESC'
+                ]);
+                
+                if (!empty($essay_posts)) {
+                    $essay_post = $essay_posts[0];
+                    $student_essay = $essay_post->post_content;
+                    $essay_status = $essay_post->post_status;
+                    
+                    // Get essay score if graded
+                    $essay_score = get_post_meta($essay_post->ID, 'points', true);
+                    if (empty($essay_score)) {
+                        $essay_score = 0;
+                    }
+                }
+                
+                // Get question points from ProQuiz model
+                if (class_exists('WpProQuiz_Model_QuestionMapper')) {
+                    $question_mapper = new WpProQuiz_Model_QuestionMapper();
+                    $pro_question = $question_mapper->fetch($pro_question_id);
+                    if ($pro_question) {
+                        $question_points = $pro_question->getPoints();
+                    }
+                }
+            }
+            
             $essay_data = [
                 'question_id' => $selected_essay_question,
                 'question_title' => $question_post->post_title,
                 'question_content' => $question_post->post_content,
+                'student_essay' => $student_essay,
+                'essay_status' => $essay_status,
+                'essay_score' => $essay_score,
+                'question_points' => $question_points,
                 'quiz_title' => $quiz_title,
                 'quiz_id' => $quiz_id
             ];
@@ -1199,6 +1253,94 @@ function render_certificate_html($certificate_data) {
                 margin-bottom: 1rem;
             }
             
+            .question-content {
+                margin-bottom: 1.5rem;
+                padding: 1rem;
+                background: #f8f9fa;
+                border-radius: 8px;
+                border-left: 4px solid #18C867;
+            }
+            
+            .question-content h5 {
+                color: #1A3A27;
+                margin: 0 0 0.5rem 0;
+                font-weight: bold;
+            }
+            
+            .question-text {
+                color: #333;
+                line-height: 1.6;
+            }
+            
+            .student-answer {
+                margin-top: 1.5rem;
+                padding: 1rem;
+                background: #fffff3;
+                border: 1px solid  #ddd;
+                border-radius: 8px;
+            }
+            
+            .student-answer h5 {
+                color: #1A3A27;
+                margin: 0 0 0.5rem 0;
+                font-weight: bold;
+            }
+            
+            .no-answer {
+                margin-top: 1.5rem;
+                padding: 1rem;
+                background: #f8f9fa;
+                border: 1px solid #ddd;
+                border-radius: 8px;
+                text-align: center;
+                color: #666;
+            }
+            
+            .question-details {
+                margin-top: 1rem;
+                padding: 0.75rem;
+                background: #f8f9fa;
+                border-radius: 6px;
+                border-left: 3px solid #18C867;
+            }
+            
+            .question-meta {
+                display: flex;
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+            
+            .question-meta .points {
+                font-weight: bold;
+                color: #1A3A27;
+                font-size: 0.9rem;
+            }
+            
+            .question-meta .score {
+                font-weight: bold;
+                color: #18C867;
+                font-size: 0.9rem;
+            }
+            
+            .question-meta .status {
+                color: #666;
+                font-size: 0.85rem;
+                text-transform: capitalize;
+            }
+            
+            .answer-content {
+                color: #2d5a2d;
+                line-height: 1.6;
+            }
+            
+            .answer-content p {
+                margin-bottom: 0.5rem;
+            }
+            
+            .answer-content p:last-child {
+                margin-bottom: 0;
+            }
+            
             .footer {
                 text-align: center;
                 padding: 2rem 1rem;
@@ -1264,7 +1406,7 @@ function render_certificate_html($certificate_data) {
                         </g>
                     </svg>
                 </div>
-                <h1 class="certificate-title">Student Performance Certificate</h1>
+                <h1 class="certificate-title">Multicheck Zertifikat</h1>
                 
                 <div class="qr-code">
                     <div style="width: 80px; height: 80px; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center;">
@@ -1298,17 +1440,21 @@ function render_certificate_html($certificate_data) {
                 
                 <?php if (!empty($certificate_data['essay_data'])): ?>
                     <div class="essay-section">
-                        <h2 class="section-title">Featured Essay Question</h2>
-                        <div class="essay-quiz-info">
-                            <strong>From Quiz:</strong> <?php echo esc_html($certificate_data['essay_data']['quiz_title']); ?>
-                        </div>
+                        <h2 class="section-title">Texteschreiben</h2>
                         <div class="essay-question">
-                            <h4><?php echo esc_html($certificate_data['essay_data']['question_title']); ?></h4>
-                            <?php if (!empty($certificate_data['essay_data']['question_content'])): ?>
-                                <div class="question-content">
-                                    <?php echo wp_kses_post($certificate_data['essay_data']['question_content']); ?>
+                            <?php if (!empty($certificate_data['essay_data']['student_essay'])): ?>
+                                <div class="student-answer">
+                                    <div class="answer-content">
+                                        <?php echo wp_kses_post(wpautop($certificate_data['essay_data']['student_essay'])); ?>
+                                    </div>
+                                </div>
+                            <?php else: ?>
+                                <div class="no-answer">
+                                    <p><em>No essay submission found for this question.</em></p>
                                 </div>
                             <?php endif; ?>
+                            
+                   
                         </div>
                     </div>
                 <?php endif; ?>
